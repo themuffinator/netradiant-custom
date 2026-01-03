@@ -36,7 +36,7 @@ inline QMessageBox::StandardButtons qt_buttons_for_mask( int buttons ){
 	return out;
 }
 
-EMessageBoxReturn qt_MessageBox( QWidget *parent, const char* text, const char* title /* = "NetRadiant" */, EMessageBoxType type /* = EMessageBoxType::Info */, int buttons /* = 0 */ ){
+EMessageBoxReturn qt_MessageBox( QWidget *parent, const char* text, const char* title /* = "VibeRadiant" */, EMessageBoxType type /* = EMessageBoxType::Info */, int buttons /* = 0 */ ){
 	QMessageBox::StandardButton ret{};
 	switch ( type )
 	{

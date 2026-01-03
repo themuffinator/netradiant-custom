@@ -82,6 +82,7 @@
 #include "mainframe.h"
 #include "commands.h"
 #include "preferences.h"
+#include "localization.h"
 #include "environment.h"
 #include "referencecache.h"
 #include "stacktrace.h"
@@ -205,12 +206,12 @@ public:
 			ScopedLock lock( m_lock );
 #if defined _DEBUG
 			m_buffer << "Break into the debugger?\n";
-			bool handled = qt_MessageBox( 0, m_buffer, "Radiant - Runtime Error", EMessageBoxType::Error, eIDYES | eIDNO ) == eIDNO;
+			bool handled = qt_MessageBox( 0, m_buffer, "VibeRadiant - Runtime Error", EMessageBoxType::Error, eIDYES | eIDNO ) == eIDNO;
 			m_buffer.clear();
 			return handled;
 #else
 			m_buffer << "Please report this error to the developers\n";
-			qt_MessageBox( 0, m_buffer, "Radiant - Runtime Error", EMessageBoxType::Error );
+			qt_MessageBox( 0, m_buffer, "VibeRadiant - Runtime Error", EMessageBoxType::Error );
 			m_buffer.clear();
 #endif
 		}
@@ -241,7 +242,7 @@ void paths_init(){
 	g_strAppPath = environment_get_app_path();
 
 	if( !string_is_ascii( g_strAppPath.c_str() ) )
-		Error( "Radiant path is not ASCII: %s", g_strAppPath.c_str() );
+		Error( "VibeRadiant path is not ASCII: %s", g_strAppPath.c_str() );
 
 	// radiant is installed in the parent dir of "tools/"
 	// NOTE: this is not very easy for debugging
@@ -283,7 +284,7 @@ bool check_version(){
 		const auto msg = StringStream(
 			"This editor binary (" RADIANT_VERSION ") doesn't match what the latest setup has configured in this directory\n"
 			"Make sure you run the right/latest editor binary you installed\n", AppPath_get() );
-		qt_MessageBox( 0, msg, "Radiant" );
+		qt_MessageBox( 0, msg, "VibeRadiant" );
 		return false;
 	}
 #endif
@@ -298,7 +299,7 @@ void create_global_pid(){
 	   this is the first part of the two step .pid system
 	   http://zerowing.idsoftware.com/bugzilla/show_bug.cgi?id=297
 	 */
-	const auto g_pidFile = StringStream( SettingsPath_get(), "radiant.pid" ); ///< the global .pid file (only for global part of the startup)
+	const auto g_pidFile = StringStream( SettingsPath_get(), "viberadiant.pid" ); ///< the global .pid file (only for global part of the startup)
 
 	FILE *pid;
 	pid = fopen( g_pidFile, "r" );
@@ -306,22 +307,22 @@ void create_global_pid(){
 		fclose( pid );
 
 		if ( remove( g_pidFile ) == -1 ) {
-			qt_MessageBox( 0, StringStream( "WARNING: Could not delete ", g_pidFile ), "Radiant", EMessageBoxType::Error );
+			qt_MessageBox( 0, StringStream( "WARNING: Could not delete ", g_pidFile ), "VibeRadiant", EMessageBoxType::Error );
 		}
 
 		// in debug, never prompt to clean registry
 #if !defined( _DEBUG )
-		const char msg[] = "Radiant failed to start properly the last time it was run.\n"
+		const char msg[] = "VibeRadiant failed to start properly the last time it was run.\n"
 		                   "The failure may be related to current global preferences.\n"
 		                   "Do you want to reset global preferences to defaults?";
 
-		if ( qt_MessageBox( 0, msg, "Radiant - Startup Failure", EMessageBoxType::Question ) == eIDYES ) {
+		if ( qt_MessageBox( 0, msg, "VibeRadiant - Startup Failure", EMessageBoxType::Question ) == eIDYES ) {
 			g_GamesDialog.Reset();
 		}
 
 		const auto msg2 = StringStream( "Logging console output to ", SettingsPath_get(),
-		                                "radiant.log\nRefer to the log if Radiant fails to start again." );
-		qt_MessageBox( 0, msg2, "Radiant - Console Log" );
+		                                "viberadiant.log\nRefer to the log if VibeRadiant fails to start again." );
+		qt_MessageBox( 0, msg2, "VibeRadiant - Console Log" );
 #endif
 	}
 
@@ -333,10 +334,10 @@ void create_global_pid(){
 }
 
 void remove_global_pid(){
-	const auto g_pidFile = StringStream( SettingsPath_get(), "radiant.pid" );
+	const auto g_pidFile = StringStream( SettingsPath_get(), "viberadiant.pid" );
 	// close the primary
 	if ( remove( g_pidFile ) == -1 ) {
-		qt_MessageBox( 0, StringStream( "WARNING: Could not delete ", g_pidFile ), "Radiant", EMessageBoxType::Error );
+		qt_MessageBox( 0, StringStream( "WARNING: Could not delete ", g_pidFile ), "VibeRadiant", EMessageBoxType::Error );
 	}
 }
 
@@ -345,28 +346,28 @@ void remove_global_pid(){
    http://zerowing.idsoftware.com/bugzilla/show_bug.cgi?id=297
  */
 void create_local_pid(){
-	const auto g_pidGameFile = StringStream( SettingsPath_get(), g_pGameDescription->mGameFile, "/radiant-game.pid" ); ///< the game-specific .pid file
+	const auto g_pidGameFile = StringStream( SettingsPath_get(), g_pGameDescription->mGameFile, "/viberadiant-game.pid" ); ///< the game-specific .pid file
 
 	FILE *pid = fopen( g_pidGameFile, "r" );
 	if ( pid != 0 ) {
 		fclose( pid );
 		if ( remove( g_pidGameFile ) == -1 ) {
-			qt_MessageBox( 0, StringStream( "WARNING: Could not delete ", g_pidGameFile ), "Radiant", EMessageBoxType::Error );
+			qt_MessageBox( 0, StringStream( "WARNING: Could not delete ", g_pidGameFile ), "VibeRadiant", EMessageBoxType::Error );
 		}
 
 		// in debug, never prompt to clean registry
 #if !defined( _DEBUG )
-		const char msg[] = "Radiant failed to start properly the last time it was run.\n"
+		const char msg[] = "VibeRadiant failed to start properly the last time it was run.\n"
 		                   "The failure may be caused by current preferences.\n"
 		                   "Do you want to reset all preferences to defaults?";
 
-		if ( qt_MessageBox( 0, msg, "Radiant - Startup Failure", EMessageBoxType::Question ) == eIDYES ) {
+		if ( qt_MessageBox( 0, msg, "VibeRadiant - Startup Failure", EMessageBoxType::Question ) == eIDYES ) {
 			Preferences_Reset();
 		}
 
 		const auto msg2 = StringStream( "Logging console output to ", SettingsPath_get(),
-		                                "radiant.log\nRefer to the log if Radiant fails to start again." );
-		qt_MessageBox( 0, msg2, "Radiant - Console Log" );
+		                                "viberadiant.log\nRefer to the log if VibeRadiant fails to start again." );
+		qt_MessageBox( 0, msg2, "VibeRadiant - Console Log" );
 #endif
 	}
 	else
@@ -385,7 +386,7 @@ void create_local_pid(){
    http://zerowing.idsoftware.com/bugzilla/show_bug.cgi?id=297
  */
 void remove_local_pid(){
-	remove( StringStream( SettingsPath_get(), g_pGameDescription->mGameFile, "/radiant-game.pid" ) );
+	remove( StringStream( SettingsPath_get(), g_pGameDescription->mGameFile, "/viberadiant-game.pid" ) );
 }
 
 
@@ -414,8 +415,8 @@ int main( int argc, char* argv[] ){
 	QApplication qapplication( argc, argv );
 	setlocale( LC_NUMERIC, "C" );
 	qInstallMessageHandler( qute_messageHandler );
-	QCoreApplication::setOrganizationName( "QtRadiant" );
-	QCoreApplication::setApplicationName( "NetRadiant-Custom" );
+	QCoreApplication::setOrganizationName( "VibeRadiant" );
+	QCoreApplication::setApplicationName( "VibeRadiant" );
 	QCoreApplication::setApplicationVersion( QT_VERSION_STR );
 
 	GlobalDebugMessageHandler::instance().setHandler( GlobalPopupDebugMessageHandler::instance() );
@@ -423,6 +424,7 @@ int main( int argc, char* argv[] ){
 	environment_init( argc, argv );
 
 	paths_init();
+	Localization_init();
 
 	if ( !check_version() ) {
 		return EXIT_FAILURE;

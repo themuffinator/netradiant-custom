@@ -1,0 +1,31 @@
+{
+  "&Build": "&Bygg",
+  "&Curve": "&Kurve",
+  "&Edit": "&Rediger",
+  "&File": "&Fil",
+  "&Grid": "&Rutenett",
+  "&Help": "&Hjelp",
+  "&Plugins": "&Tillegg",
+  "Auto (System)": "Automatisk (System)",
+  "Brush": "Pensel",
+  "Display Preferences": "Visningsinnstillinger",
+  "E&ntity": "&Entitet",
+  "E&xit": "&Avslutt",
+  "Engine Path Configuration": "Konfigurasjon av motorsti",
+  "Game Settings": "Spillinnstillinger",
+  "General Settings": "Generelle innstillinger",
+  "Global Preferences": "Globale innstillinger",
+  "Interface Preferences": "Grensesnittinnstillinger",
+  "Language": "Spr\u00e5k",
+  "M&isc": "&Diverse",
+  "M&odify": "&Endre",
+  "Path settings": "Stiinnstillinger",
+  "Path Settings": "Stiinnstillinger",
+  "Pre&ferences...": "&Innstillinger...",
+  "VibeRadiant Preferences": "VibeRadiant-innstillinger",
+  "Vie&w": "&Vis",
+  "_meta": {
+    "code": "nb",
+    "name": "Norwegian Bokmal"
+  }
+}

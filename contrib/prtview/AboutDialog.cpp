@@ -30,7 +30,7 @@ void DoAboutDlg(){
 	                       "<a href='mailto:leo@lokigames.com'>leo@lokigames.com</a><br><br>"
 	                       "Written by Geoffrey DeWan<br>"
 	                       "<a href='mailto:gdewan@prairienet.org'>gdewan@prairienet.org</a><br><br>"
-	                       "Built against NetRadiant " RADIANT_VERSION "<br>"
+	                       "Built against VibeRadiant " RADIANT_VERSION "<br>"
 	                       __DATE__;
 	GlobalRadiant().m_pfnMessageBox( g_pRadiantWnd, msg, "About Portal Viewer", EMessageBoxType::Info, 0 );
 }

@@ -29,10 +29,15 @@
 
 #include "eclasslib.h"
 #include "scenelib.h"
+#include "brush.h"
+#include "math/line.h"
 #include "os/path.h"
 #include "os/file.h"
 #include "stream/stringstream.h"
 #include "stringio.h"
+
+#include <cmath>
+#include <limits>
 
 #include "gtkutil/filechooser.h"
 #include "gtkutil/widget.h"
@@ -347,6 +352,109 @@ void Entity_killconnectSelected(){
 	{
 		globalErrorStream() << "entityKillConnectSelected: exactly two instances must be selected\n";
 	}
+}
+
+namespace {
+bool point_inside_face_winding( const Winding& winding, const Plane3& plane, const DoubleVector3& point ){
+	if ( winding.numpoints < 3 ) {
+		return false;
+	}
+
+	const DoubleVector3& normal = plane.normal();
+	const double epsilon = 0.01;
+	for ( std::size_t i = 0, j = winding.numpoints - 1; i < winding.numpoints; j = i, ++i ){
+		const DoubleVector3 edge = vector3_subtracted( winding[i].vertex, winding[j].vertex );
+		const DoubleVector3 to_point = vector3_subtracted( point, winding[j].vertex );
+		const DoubleVector3 cross = vector3_cross( edge, to_point );
+		if ( vector3_dot( cross, normal ) < -epsilon ) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool Scene_findDropPoint( const Vector3& origin, Vector3& out ){
+	const DoubleRay ray( DoubleVector3( origin ), DoubleVector3( 0.0, 0.0, -1.0 ) );
+	double best_distance = std::numeric_limits<double>::max();
+	bool found = false;
+
+	Scene_forEachVisibleBrush( GlobalSceneGraph(), [&]( BrushInstance& brush ){
+		for ( const auto& face_ptr : brush.getBrush() ){
+			const Face& face = *face_ptr;
+			const Winding& winding = face.getWinding();
+			if ( winding.numpoints < 3 ) {
+				continue;
+			}
+			const Plane3& plane = face.plane3();
+			if ( plane.normal().z() <= 0.0001 ) {
+				continue;
+			}
+			const double denom = vector3_dot( ray.direction, plane.normal() );
+			if ( std::fabs( denom ) < 1e-6 ) {
+				continue;
+			}
+			const double t = -plane3_distance_to_point( plane, ray.origin ) / denom;
+			if ( t <= 0.0 ) {
+				continue;
+			}
+			const DoubleVector3 hit = ray.origin + ray.direction * t;
+			if ( !point_inside_face_winding( winding, plane, hit ) ) {
+				continue;
+			}
+			if ( t < best_distance ) {
+				best_distance = t;
+				out = Vector3( hit );
+				found = true;
+			}
+		}
+	} );
+
+	return found;
+}
+
+class EntityDropToFloorSelected
+{
+public:
+	void operator()( scene::Instance& instance ) const {
+		if ( !Entity_isSelected( instance ) ) {
+			return;
+		}
+
+		Entity* entity = Node_getEntity( instance.path().top() );
+		if ( entity == 0 || !entity->getEntityClass().fixedsize ) {
+			return;
+		}
+
+		Vector3 origin;
+		if ( !string_parse_vector3( entity->getKeyValue( "origin" ), origin ) ) {
+			return;
+		}
+
+		Vector3 hit;
+		if ( !Scene_findDropPoint( origin, hit ) ) {
+			return;
+		}
+
+		Transformable* transform = Instance_getTransformable( instance );
+		if ( transform == 0 ) {
+			return;
+		}
+
+		transform->setType( TRANSFORM_PRIMITIVE );
+		transform->setTranslation( vector3_subtracted( hit, origin ) );
+		transform->freezeTransform();
+	}
+};
+}
+
+void Entity_dropToFloor(){
+	if ( GlobalSelectionSystem().countSelected() == 0 ) {
+		return;
+	}
+
+	UndoableCommand undo( "entityDropToFloor" );
+	Scene_forEachEntity( EntityDropToFloorSelected() );
 }
 
 AABB Doom3Light_getBounds( const AABB& workzone ){
@@ -711,6 +819,7 @@ void Entity_constructMenu( QMenu* menu ){
 		create_menu_item_with_mnemonic( menu, "&KillConnect Entities", "EntitiesKillConnect" );
 	}
 	create_menu_item_with_mnemonic( menu, "&Move Primitives to Entity", "EntityMovePrimitivesToLast" );
+	create_menu_item_with_mnemonic( menu, "Drop Entities to &Floor", "EntityDropToFloor" );
 	create_menu_item_with_mnemonic( menu, "&Select Color...", "EntityColorSet" );
 	create_menu_item_with_mnemonic( menu, "&Normalize Color", "EntityColorNormalize" );
 	menu->addSeparator();
@@ -735,6 +844,7 @@ void Entity_Construct(){
 	if ( game_has_killConnect() )
 		GlobalCommands_insert( "EntitiesKillConnect", makeCallbackF( Entity_killconnectSelected ), QKeySequence( "Shift+K" ) );
 	GlobalCommands_insert( "EntityMovePrimitivesToLast", makeCallbackF( Entity_moveSelectedPrimitivesToLast ), QKeySequence( "Ctrl+M" ) );
+	GlobalCommands_insert( "EntityDropToFloor", makeCallbackF( Entity_dropToFloor ) );
 	GlobalCommands_insert( "EntityMovePrimitivesToFirst", makeCallbackF( Entity_moveSelectedPrimitivesToFirst ) );
 	GlobalCommands_insert( "EntityUngroup", makeCallbackF( Entity_ungroup ) );
 	GlobalCommands_insert( "EntityUngroupPrimitives", makeCallbackF( Entity_ungroupSelectedPrimitives ) );

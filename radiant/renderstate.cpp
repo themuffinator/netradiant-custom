@@ -329,6 +329,89 @@ public:
 
 GLSLBumpProgram g_bumpGLSL;
 
+class GLSLPreviewLightProgram : public GLProgram
+{
+public:
+	GLuint m_program;
+	GLint u_light_origin;
+	GLint u_light_color;
+
+	GLSLPreviewLightProgram() : m_program( 0 ){
+	}
+
+	void create(){
+		m_program = gl().glCreateProgram();
+
+		{
+			StringOutputStream filename( 256 );
+			createShader( m_program, filename( GlobalRadiant().getAppPath(), "gl/lighting_preview_vp.glsl" ), GL_VERTEX_SHADER );
+			createShader( m_program, filename( GlobalRadiant().getAppPath(), "gl/lighting_preview_fp.glsl" ), GL_FRAGMENT_SHADER );
+		}
+
+		GLSLProgram_link( m_program );
+		GLSLProgram_validate( m_program );
+
+		gl().glUseProgram( m_program );
+
+		gl().glBindAttribLocation( m_program, c_attr_TexCoord0, "attr_TexCoord0" );
+
+		gl().glUniform1i( gl().glGetUniformLocation( m_program, "u_diffusemap" ), 0 );
+
+		u_light_origin = gl().glGetUniformLocation( m_program, "u_light_origin" );
+		u_light_color = gl().glGetUniformLocation( m_program, "u_light_color" );
+
+		gl().glUseProgram( 0 );
+
+		GlobalOpenGL_debugAssertNoErrors();
+	}
+
+	void destroy(){
+		gl().glDeleteProgram( m_program );
+		m_program = 0;
+	}
+
+	void enable() override {
+		gl().glUseProgram( m_program );
+
+		gl().glEnableVertexAttribArray( c_attr_TexCoord0 );
+
+		GlobalOpenGL_debugAssertNoErrors();
+	}
+
+	void disable() override {
+		gl().glUseProgram( 0 );
+
+		gl().glDisableVertexAttribArray( c_attr_TexCoord0 );
+
+		GlobalOpenGL_debugAssertNoErrors();
+	}
+
+	void setParameters( const Vector3& viewer, const Matrix4& localToWorld, const Vector3& origin, const Vector3& colour, const Matrix4& world2light ) override {
+		Matrix4 world2local( localToWorld );
+		matrix4_affine_invert( world2local );
+
+		Vector3 localLight( origin );
+		matrix4_transform_point( world2local, localLight );
+
+		Matrix4 local2light( world2light );
+		matrix4_multiply_by_matrix4( local2light, localToWorld ); // local->world->light
+
+		gl().glUniform3f( u_light_origin, localLight.x(), localLight.y(), localLight.z() );
+		gl().glUniform3f( u_light_color, colour.x(), colour.y(), colour.z() );
+
+		gl().glActiveTexture( GL_TEXTURE3 );
+		gl().glClientActiveTexture( GL_TEXTURE3 );
+
+		gl().glMatrixMode( GL_TEXTURE );
+		gl().glLoadMatrixf( reinterpret_cast<const float*>( &local2light ) );
+		gl().glMatrixMode( GL_MODELVIEW );
+
+		GlobalOpenGL_debugAssertNoErrors();
+	}
+};
+
+GLSLPreviewLightProgram g_previewLightGLSL;
+
 
 class GLSLDepthFillProgram : public GLProgram
 {
@@ -989,6 +1072,9 @@ public:
 			if ( lightingEnabled() ) {
 				g_bumpGLSL.create();
 				g_depthFillGLSL.create();
+				if ( g_pGameDescription->mGameType != "doom3" ) {
+					g_previewLightGLSL.create();
+				}
 			}
 
 			g_skyboxGLSL.create();
@@ -1012,6 +1098,9 @@ public:
 			if ( GlobalOpenGL().contextValid && lightingEnabled() ) {
 				g_bumpGLSL.destroy();
 				g_depthFillGLSL.destroy();
+				if ( g_pGameDescription->mGameType != "doom3" ) {
+					g_previewLightGLSL.destroy();
+				}
 			}
 			if( GlobalOpenGL().contextValid )
 				g_skyboxGLSL.destroy();
@@ -1564,26 +1653,51 @@ void Renderables_flush( OpenGLStateBucket::Renderables& renderables, OpenGLState
 		count_prim();
 
 		if ( current.m_program != 0 && rend.m_light != 0 ) {
-			const IShader& lightShader = static_cast<OpenGLShader*>( rend.m_light->getShader() )->getShader();
-			if ( lightShader.firstLayer() != 0 ) {
-				GLuint attenuation_xy = lightShader.firstLayer()->texture()->texture_number;
-				GLuint attenuation_z = lightShader.lightFalloffImage() != 0
-				                       ? lightShader.lightFalloffImage()->texture_number
-				                       : static_cast<OpenGLShader*>( g_defaultPointLight )->getShader().lightFalloffImage()->texture_number;
+			const bool isBumpProgram = current.m_program == &g_bumpGLSL;
+			const Shader* lightShaderState = rend.m_light->getShader();
 
-				setTextureState( current.m_texture3, attenuation_xy, GL_TEXTURE3 );
-				gl().glActiveTexture( GL_TEXTURE3 );
-				gl().glBindTexture( GL_TEXTURE_2D, attenuation_xy );
-				gl().glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER );
-				gl().glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER );
+			if ( isBumpProgram && lightShaderState != 0 ) {
+				const IShader& lightShader = static_cast<const OpenGLShader*>( lightShaderState )->getShader();
+				if ( lightShader.firstLayer() != 0 ) {
+					GLuint attenuation_xy = lightShader.firstLayer()->texture()->texture_number;
+					GLuint attenuation_z = lightShader.lightFalloffImage() != 0
+					                       ? lightShader.lightFalloffImage()->texture_number
+					                       : static_cast<OpenGLShader*>( g_defaultPointLight )->getShader().lightFalloffImage()->texture_number;
 
-				setTextureState( current.m_texture4, attenuation_z, GL_TEXTURE4 );
-				gl().glActiveTexture( GL_TEXTURE4 );
-				gl().glBindTexture( GL_TEXTURE_2D, attenuation_z );
-				gl().glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER );
-				gl().glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
+					setTextureState( current.m_texture3, attenuation_xy, GL_TEXTURE3 );
+					gl().glActiveTexture( GL_TEXTURE3 );
+					gl().glBindTexture( GL_TEXTURE_2D, attenuation_xy );
+					gl().glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER );
+					gl().glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER );
 
+					setTextureState( current.m_texture4, attenuation_z, GL_TEXTURE4 );
+					gl().glActiveTexture( GL_TEXTURE4 );
+					gl().glBindTexture( GL_TEXTURE_2D, attenuation_z );
+					gl().glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER );
+					gl().glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
 
+					AABB lightBounds( rend.m_light->aabb() );
+
+					Matrix4 world2light( g_matrix4_identity );
+
+					if ( rend.m_light->isProjected() ) {
+						world2light = rend.m_light->projection();
+						matrix4_multiply_by_matrix4( world2light, matrix4_transposed( rend.m_light->rotation() ) );
+						matrix4_translate_by_vec3( world2light, vector3_negated( lightBounds.origin ) ); // world->lightBounds
+					}
+					if ( !rend.m_light->isProjected() ) {
+						matrix4_translate_by_vec3( world2light, Vector3( 0.5f, 0.5f, 0.5f ) );
+						matrix4_scale_by_vec3( world2light, Vector3( 0.5f, 0.5f, 0.5f ) );
+						matrix4_scale_by_vec3( world2light, Vector3( 1.0f / lightBounds.extents.x(), 1.0f / lightBounds.extents.y(), 1.0f / lightBounds.extents.z() ) );
+						matrix4_multiply_by_matrix4( world2light, matrix4_transposed( rend.m_light->rotation() ) );
+						matrix4_translate_by_vec3( world2light, vector3_negated( lightBounds.origin ) ); // world->lightBounds
+					}
+
+					current.m_program->setParameters( viewer, *rend.m_transform, lightBounds.origin + rend.m_light->offset(), rend.m_light->colour(), world2light );
+					debug_string( "set lightBounds parameters" );
+				}
+			}
+			else if ( !isBumpProgram ) {
 				AABB lightBounds( rend.m_light->aabb() );
 
 				Matrix4 world2light( g_matrix4_identity );
@@ -1947,6 +2061,25 @@ void OpenGLShader::construct( const char* name ){
 			state.m_state = RENDER_CULLFACE | RENDER_COLOURWRITE | RENDER_DEPTHWRITE | RENDER_FILL | RENDER_POLYGONSTIPPLE;
 			state.m_sort = OpenGLState::eSortOverlayFirst;
 		}
+		else if ( string_equal( name + 1, "CLIPPER_VOLUME_WIRE" ) ) {
+			state.m_colour = Vector4( 1, 1, 0, 1 );
+			state.m_state = RENDER_COLOURWRITE;
+			state.m_sort = OpenGLState::eSortOverlayFirst;
+			state.m_linewidth = 2;
+		}
+		else if ( string_equal( name + 1, "CLIPPER_VIBE_FILL" ) ) {
+			state.m_colour = Vector4( 1, 0, 0, 0.25f );
+			state.m_state = RENDER_COLOURWRITE | RENDER_BLEND | RENDER_FILL | RENDER_POLYGONSTIPPLE;
+			state.m_sort = OpenGLState::eSortOverlayFirst;
+		}
+		else if ( string_equal( name + 1, "CLIPPER_VIBE_CUTLINE" ) ) {
+			state.m_colour = Vector4( 1, 0, 0, 1 );
+			state.m_state = RENDER_COLOURWRITE | RENDER_LINESTIPPLE;
+			state.m_sort = OpenGLState::eSortOverlayFirst + 1;
+			state.m_linewidth = 2;
+			state.m_linestipple_factor = 2;
+			state.m_linestipple_pattern = 0xF0F0;
+		}
 		else if ( string_equal( name + 1, "OVERBRIGHT" ) ) {
 			const float lightScale = 2;
 			state.m_colour = Vector4( Vector3( lightScale * 0.5f ), 0.5 );
@@ -2058,6 +2191,18 @@ void OpenGLShader::construct( const char* name ){
 			{
 				state.m_state |= RENDER_DEPTHWRITE;
 				state.m_sort = OpenGLState::eSortFullbright;
+			}
+
+			if ( g_ShaderCache->lightingEnabled() && g_pGameDescription->mGameType != "doom3" ) {
+				OpenGLState& lightPass = appendDefaultPass();
+				lightPass = state;
+				lightPass.m_state |= RENDER_BLEND | RENDER_BUMP | RENDER_PROGRAM;
+				lightPass.m_state &= ~RENDER_DEPTHWRITE;
+				lightPass.m_program = &g_previewLightGLSL;
+				lightPass.m_blend_src = GL_ONE;
+				lightPass.m_blend_dst = GL_ONE;
+				lightPass.m_depthfunc = GL_LEQUAL;
+				lightPass.m_sort = OpenGLState::eSortTranslucent;
 			}
 		}
 	}

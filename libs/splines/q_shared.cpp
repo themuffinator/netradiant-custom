@@ -725,7 +725,6 @@ void QDECL Com_sprintf( char *dest, int size, const char *fmt, ... ) {
 
    does a varargs printf into a temp buffer, so I don't need to have
    varargs versions of all text functions.
-   FIXME: make this buffer size safe someday
    ============
  */
 char    * QDECL va( char *format, ... ) {
@@ -738,8 +737,12 @@ char    * QDECL va( char *format, ... ) {
 	index++;
 
 	va_start( argptr, format );
-	vsprintf( buf, format,argptr );
+	const int written = vsnprintf( buf, sizeof( string[0] ), format, argptr );
 	va_end( argptr );
+
+	if ( written < 0 || written >= (int)sizeof( string[0] ) ) {
+		buf[sizeof( string[0] ) - 1] = '\0';
+	}
 
 	return buf;
 }
@@ -759,7 +762,6 @@ char    * QDECL va( char *format, ... ) {
 
    Searches the string for the given
    key and returns the associated value, or an empty string.
-   FIXME: overflow check?
    ===============
  */
 char *Info_ValueForKey( const char *s, const char *key ) {
@@ -789,6 +791,9 @@ char *Info_ValueForKey( const char *s, const char *key ) {
 			if ( !*s ) {
 				return "";
 			}
+			if ( o - pkey >= MAX_INFO_KEY - 1 ) {
+				Com_Error( ERR_DROP, "Info_ValueForKey: oversize key" );
+			}
 			*o++ = *s++;
 		}
 		*o = 0;
@@ -798,6 +803,9 @@ char *Info_ValueForKey( const char *s, const char *key ) {
 
 		while ( *s != '\\' && *s )
 		{
+			if ( o - value[valueindex] >= MAX_INFO_VALUE - 1 ) {
+				Com_Error( ERR_DROP, "Info_ValueForKey: oversize value" );
+			}
 			*o++ = *s++;
 		}
 		*o = 0;

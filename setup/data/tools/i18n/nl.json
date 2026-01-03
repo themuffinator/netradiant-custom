@@ -1,0 +1,31 @@
+{
+  "&Build": "&Bouwen",
+  "&Curve": "&Kromme",
+  "&Edit": "&Bewerken",
+  "&File": "&Bestand",
+  "&Grid": "&Raster",
+  "&Help": "&Help",
+  "&Plugins": "&Plugins",
+  "Auto (System)": "Automatisch (Systeem)",
+  "Brush": "Penseel",
+  "Display Preferences": "Weergavevoorkeuren",
+  "E&ntity": "&Entiteit",
+  "E&xit": "&Afsluiten",
+  "Engine Path Configuration": "Configuratie van enginepad",
+  "Game Settings": "Spelinstellingen",
+  "General Settings": "Algemene instellingen",
+  "Global Preferences": "Globale voorkeuren",
+  "Interface Preferences": "Interfacevoorkeuren",
+  "Language": "Taal",
+  "M&isc": "&Diversen",
+  "M&odify": "&Wijzigen",
+  "Path settings": "Padinstellingen",
+  "Path Settings": "Padinstellingen",
+  "Pre&ferences...": "&Voorkeuren...",
+  "VibeRadiant Preferences": "VibeRadiant-voorkeuren",
+  "Vie&w": "&Beeld",
+  "_meta": {
+    "code": "nl",
+    "name": "Dutch"
+  }
+}

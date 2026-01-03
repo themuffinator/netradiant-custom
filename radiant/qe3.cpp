@@ -260,7 +260,14 @@ void RunBSP( size_t buildIdx ){
 // Sys_ functions
 
 void Sys_SetTitle( const char *text, bool modified ){
-	auto title = StringStream( text );
+	StringOutputStream title( 256 );
+	title << "Vibe Radiant - ";
+	if ( text != nullptr && text[0] != '\0' ) {
+		title << PathFilename( text );
+	}
+	else{
+		title << "unnamed.map";
+	}
 
 	if ( modified ) {
 		title << " *";

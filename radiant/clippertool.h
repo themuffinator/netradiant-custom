@@ -45,6 +45,14 @@ public:
 	}
 };
 
+enum ClipperVolumeVisualStyle
+{
+	eClipperVolumeVisualGtk = 0,
+	eClipperVolumeVisualNrc = 1,
+	eClipperVolumeVisualVibe = 2,
+};
+
+int Clipper_getVolumeVisual();
 
 void Clipper_setPlanePoints( const ClipperPoints& points );
 const ClipperPoints& Clipper_getPlanePoints();

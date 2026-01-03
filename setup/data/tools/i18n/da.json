@@ -1,0 +1,31 @@
+{
+  "&Build": "&Byg",
+  "&Curve": "&Kurve",
+  "&Edit": "&Rediger",
+  "&File": "&Fil",
+  "&Grid": "&Gitter",
+  "&Help": "&Hj\u00e6lp",
+  "&Plugins": "&Plugins",
+  "Auto (System)": "Automatisk (System)",
+  "Brush": "Pensel",
+  "Display Preferences": "Visningsindstillinger",
+  "E&ntity": "&Enhed",
+  "E&xit": "&Afslut",
+  "Engine Path Configuration": "Konfiguration af motorsti",
+  "Game Settings": "Spilindstillinger",
+  "General Settings": "Generelle indstillinger",
+  "Global Preferences": "Globale indstillinger",
+  "Interface Preferences": "Brugerfladeindstillinger",
+  "Language": "Sprog",
+  "M&isc": "&Diverse",
+  "M&odify": "&Rediger",
+  "Path settings": "Stiindstillinger",
+  "Path Settings": "Stiindstillinger",
+  "Pre&ferences...": "&Indstillinger...",
+  "VibeRadiant Preferences": "VibeRadiant-indstillinger",
+  "Vie&w": "&Vis",
+  "_meta": {
+    "code": "da",
+    "name": "Danish"
+  }
+}

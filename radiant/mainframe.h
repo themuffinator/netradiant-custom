@@ -71,6 +71,7 @@ public:
 	QSplitter* m_vSplit{};
 	QSplitter* m_hSplit{};
 	QSplitter* m_vSplit2{};
+	QSplitter* m_xySplit{};
 
 private:
 

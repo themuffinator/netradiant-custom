@@ -60,8 +60,14 @@
 #include "signal/signalfwd.h"
 #include "xml/ixml.h"
 #include "dragplanes.h"
+#include "linkedgroups.h"
 
 #include "brush_primit.h"
+
+namespace scene
+{
+class Node;
+}
 
 enum EPatchType
 {
@@ -689,6 +695,9 @@ public:
 		transformChanged();
 		evaluateTransform();
 		UpdateCachedData();
+		if ( m_node != 0 ) {
+			LinkedGroups_MarkNodeChanged( *m_node );
+		}
 	}
 	bool isValid() const;
 

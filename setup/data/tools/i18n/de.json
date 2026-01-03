@@ -1,0 +1,31 @@
+{
+  "&Build": "&Bauen",
+  "&Curve": "&Kurve",
+  "&Edit": "&Bearbeiten",
+  "&File": "&Datei",
+  "&Grid": "&Raster",
+  "&Help": "&Hilfe",
+  "&Plugins": "&Plugins",
+  "Auto (System)": "Automatisch (System)",
+  "Brush": "Pinsel",
+  "Display Preferences": "Anzeigeeinstellungen",
+  "E&ntity": "&Entit\u00e4t",
+  "E&xit": "&Beenden",
+  "Engine Path Configuration": "Konfiguration des Engine-Pfads",
+  "Game Settings": "Spieleinstellungen",
+  "General Settings": "Allgemeine Einstellungen",
+  "Global Preferences": "Globale Einstellungen",
+  "Interface Preferences": "Oberfl\u00e4cheneinstellungen",
+  "Language": "Sprache",
+  "M&isc": "&Verschiedenes",
+  "M&odify": "&\u00c4ndern",
+  "Path settings": "Pfadeinstellungen",
+  "Path Settings": "Pfadeinstellungen",
+  "Pre&ferences...": "&Einstellungen...",
+  "VibeRadiant Preferences": "VibeRadiant-Einstellungen",
+  "Vie&w": "&Ansicht",
+  "_meta": {
+    "code": "de",
+    "name": "German"
+  }
+}

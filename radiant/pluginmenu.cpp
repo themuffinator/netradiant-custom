@@ -30,6 +30,7 @@
 #include "preferences.h"
 
 #include "gtkmisc.h"
+#include "gtkutil/i18n.h"
 
 #include <stack>
 typedef std::stack<QMenu*> MenuStack;
@@ -128,7 +129,7 @@ void PluginsMenu_clear(){
 
 void create_plugins_menu( QMenuBar *menubar ){
 	// Plugins menu
-	QMenu *menu = menubar->addMenu( "&Plugins" );
+	QMenu *menu = menubar->addMenu( i18n::tr( "&Plugins" ) );
 
 	menu->setTearOffEnabled( g_Layout_enableDetachableMenus.m_value );
 

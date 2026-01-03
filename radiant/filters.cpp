@@ -234,7 +234,7 @@ void ConstructFilters(){
 	}
 	add_filter_command( EXCLUDE_CURVES, "FilterPatches", QKeySequence( "Ctrl+P" ) );
 	add_filter_command( EXCLUDE_DETAILS, "FilterDetails", QKeySequence( "Ctrl+D" ) );
-	add_filter_command( EXCLUDE_HINTSSKIPS, "FilterHintsSkips", QKeySequence( "Ctrl+H" ) );
+	add_filter_command( EXCLUDE_HINTSSKIPS, "FilterHintsSkips", QKeySequence( "Ctrl+Shift+H" ) );
 	add_filter_command( EXCLUDE_MODELS, "FilterModels", QKeySequence( "Shift+M" ) );
 	add_filter_command( EXCLUDE_TRIGGERS, "FilterTriggers", QKeySequence( "Ctrl+Shift+T" ) );
 	if ( g_pGameDescription->mGameType != "doom3" ) {

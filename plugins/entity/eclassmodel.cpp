@@ -32,6 +32,8 @@
 #include "renderable.h"
 #include "editable.h"
 
+#include "linkedgroups.h"
+
 #include "selectionlib.h"
 #include "instancelib.h"
 #include "transformlib.h"
@@ -64,6 +66,7 @@ class EclassModel :
 	MatrixTransform m_transform;
 	EntityKeyValues m_entity;
 	KeyObserverMap m_keyObservers;
+	LinkedGroupsEntityObserver m_linkedGroupObserver;
 
 	OriginKey m_originKey;
 	Vector3 m_origin;
@@ -158,6 +161,7 @@ public:
 
 	EclassModel( EntityClass* eclass, scene::Node& node, const Callback<void()>& transformChanged, const Callback<void()>& evaluateTransform ) :
 		m_entity( eclass ),
+		m_linkedGroupObserver( node ),
 		m_originKey( OriginChangedCaller( *this ) ),
 		m_origin( ORIGINKEY_IDENTITY ),
 		m_anglesKey( AnglesChangedCaller( *this ), m_entity ),
@@ -176,6 +180,7 @@ public:
 	}
 	EclassModel( const EclassModel& other, scene::Node& node, const Callback<void()>& transformChanged, const Callback<void()>& evaluateTransform ) :
 		m_entity( other.m_entity ),
+		m_linkedGroupObserver( node ),
 		m_originKey( OriginChangedCaller( *this ) ),
 		m_origin( ORIGINKEY_IDENTITY ),
 		m_anglesKey( AnglesChangedCaller( *this ), m_entity ),
@@ -199,6 +204,7 @@ public:
 			m_filter.instanceAttach();
 			m_entity.instanceAttach( path_find_mapfile( path.begin(), path.end() ) );
 			m_entity.attach( m_keyObservers );
+			m_linkedGroupObserver.attach( m_entity );
 			m_model.modelChanged( m_entity.getEntityClass().modelpath() );
 			m_skin.skinChanged( m_entity.getEntityClass().skin() );
 		}
@@ -207,6 +213,7 @@ public:
 		if ( --m_instanceCounter.m_count == 0 ) {
 			m_skin.skinChanged( "" );
 			m_model.modelChanged( "" );
+			m_linkedGroupObserver.detach( m_entity );
 			m_entity.detach( m_keyObservers );
 			m_entity.instanceDetach( path_find_mapfile( path.begin(), path.end() ) );
 			m_filter.instanceDetach();

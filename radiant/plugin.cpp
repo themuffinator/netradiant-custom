@@ -55,9 +55,11 @@
 #include "entitylist.h"
 #include "points.h"
 #include "gtkmisc.h"
+#include "entitybrowser.h"
 #include "texwindow.h"
 #include "modelwindow.h"
 #include "mainframe.h"
+#include "soundbrowser.h"
 #include "build.h"
 #include "mru.h"
 #include "surfacedialog.h"
@@ -68,6 +70,7 @@
 #include "entity.h"
 #include "select.h"
 #include "preferences.h"
+#include "update.h"
 #include "autosave.h"
 #include "plugintoolbar.h"
 #include "findtexturedialog.h"
@@ -239,6 +242,7 @@ class Radiant : public TypeSystemRef
 public:
 	Radiant(){
 		Preferences_Init();
+		UpdateManager_Construct();
 
 		SoundTypes_register();
 
@@ -259,6 +263,8 @@ public:
 		BuildMonitor_Construct();
 		TextureBrowser_Construct();
 		ModelBrowser_Construct();
+		EntityBrowser_Construct();
+		SoundBrowser_Construct();
 		Entity_Construct();
 		Autosave_Construct();
 		EntityInspector_construct();
@@ -270,6 +276,7 @@ public:
 		EnginePath_Realise();
 	}
 	~Radiant(){
+		UpdateManager_Destroy();
 		EnginePath_Unrealise();
 
 		MapRoot_destroy();
@@ -278,6 +285,8 @@ public:
 		EntityInspector_destroy();
 		Autosave_Destroy();
 		Entity_Destroy();
+		SoundBrowser_Destroy();
+		EntityBrowser_Destroy();
 		ModelBrowser_Destroy();
 		TextureBrowser_Destroy();
 		BuildMonitor_Destroy();

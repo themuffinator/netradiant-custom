@@ -29,6 +29,7 @@
 
 #include "windowobserver.h"
 #include "iundo.h"
+#include "linkedgroups.h"
 #include "ientity.h"
 #include "cullable.h"
 #include "renderable.h"
@@ -1616,8 +1617,9 @@ public:
 		m_local2view = matrix4_multiplied_by_matrix4( m_view.GetViewMatrix(), localToWorld );
 
 		// Cull back-facing polygons based on winding being clockwise or counter-clockwise.
-		// Don't cull if the view is wireframe and the polygons are two-sided.
-		m_cull = twoSided && !m_view.fill() ? eClipCullNone : ( matrix4_handedness( localToWorld ) == MATRIX4_RIGHTHANDED ) ? eClipCullCW : eClipCullCCW;
+		// Skip culling when the caller requests two-sided selection.
+		m_cull = twoSided ? eClipCullNone
+		                  : ( matrix4_handedness( localToWorld ) == MATRIX4_RIGHTHANDED ) ? eClipCullCW : eClipCullCCW;
 
 		{
 			m_screen2world = matrix4_full_inverse( m_local2view );
@@ -7141,6 +7143,34 @@ public:
 
 	void startMove(){
 		m_pivot2world_start = GetPivot2World();
+		if ( Mode() == ePrimitive ) {
+			std::set<scene::Node*> groups;
+			class GroupCollector final : public SelectionSystem::Visitor
+			{
+				std::set<scene::Node*>& m_groups;
+			public:
+				explicit GroupCollector( std::set<scene::Node*>& groups )
+					: m_groups( groups ){
+				}
+				void visit( scene::Instance& instance ) const override {
+					scene::Node& node = instance.path().top();
+					if ( node_is_group( node ) ) {
+						m_groups.insert( &node );
+					}
+				}
+			};
+
+			foreachSelected( GroupCollector( groups ) );
+			if ( !groups.empty() ) {
+				std::vector<scene::Node*> groupList;
+				groupList.reserve( groups.size() );
+				for ( scene::Node* group : groups )
+				{
+					groupList.push_back( group );
+				}
+				LinkedGroups_BeginTransform( groupList );
+			}
+		}
 	}
 
 	bool SelectManipulator( const View& view, const DeviceVector device_point, const DeviceVector device_epsilon ){
@@ -7592,11 +7622,13 @@ public:
 		startMove();
 		rotate( rotation );
 		freezeTransforms();
+		LinkedGroups_EndTransform();
 	}
 	void translateSelected( const Vector3& translation ) override {
 		startMove();
 		translate( translation );
 		freezeTransforms();
+		LinkedGroups_EndTransform();
 	}
 	void scaleSelected( const Vector3& scaling, bool snapOrigin = false ) override {
 		if( snapOrigin && !m_pivotIsCustom )
@@ -7604,6 +7636,7 @@ public:
 		startMove();
 		scale( scaling );
 		freezeTransforms();
+		LinkedGroups_EndTransform();
 	}
 
 	TransformsObserved m_repeatableTransforms;
@@ -7617,6 +7650,7 @@ public:
 				Scene_Clone_Selected();
 			alltransform( m_repeatableTransforms, m_pivot2world.t().vec3() );
 			freezeTransforms();
+			LinkedGroups_EndTransform();
 		}
 	}
 	void resetTransforms( EManipulatorMode which ) override {
@@ -7909,6 +7943,7 @@ bool RadiantSelectionSystem::endMove(){
 			m_pivotIsCustom = !m_pivotIsCustom;
 			pivotChanged();
 		}
+		LinkedGroups_EndTransform();
 		return true;
 	}
 
@@ -7916,6 +7951,7 @@ bool RadiantSelectionSystem::endMove(){
 		m_uv_manipulator.freezeTransform();
 	else
 		freezeTransforms();
+	LinkedGroups_EndTransform();
 
 //	if ( Mode() == ePrimitive && ManipulatorMode() == eDrag ) {
 //		g_bTmpComponentMode = false;
@@ -8707,7 +8743,8 @@ SelectionSystemWindowObserver* NewWindowObserver(){
 class SelectionDependencies :
 	public GlobalSceneGraphModuleRef,
 	public GlobalShaderCacheModuleRef,
-	public GlobalOpenGLModuleRef
+	public GlobalOpenGLModuleRef,
+	public GlobalLinkedGroupsModuleRef
 {
 };
 

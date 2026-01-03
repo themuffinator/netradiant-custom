@@ -1,0 +1,31 @@
+{
+  "&Build": "&Compilar",
+  "&Curve": "&Curva",
+  "&Edit": "&Editar",
+  "&File": "&Archivo",
+  "&Grid": "&Cuadr\u00edcula",
+  "&Help": "A&yuda",
+  "&Plugins": "&Complementos",
+  "Auto (System)": "Autom\u00e1tico (Sistema)",
+  "Brush": "Pincel",
+  "Display Preferences": "Preferencias de visualizaci\u00f3n",
+  "E&ntity": "&Entidad",
+  "E&xit": "&Salir",
+  "Engine Path Configuration": "Configuraci\u00f3n de la ruta del motor",
+  "Game Settings": "Configuraci\u00f3n del juego",
+  "General Settings": "Configuraci\u00f3n general",
+  "Global Preferences": "Preferencias globales",
+  "Interface Preferences": "Preferencias de la interfaz",
+  "Language": "Idioma",
+  "M&isc": "&Varios",
+  "M&odify": "&Modificar",
+  "Path settings": "Configuraci\u00f3n de rutas",
+  "Path Settings": "Configuraci\u00f3n de rutas",
+  "Pre&ferences...": "&Preferencias...",
+  "VibeRadiant Preferences": "Preferencias de VibeRadiant",
+  "Vie&w": "&Ver",
+  "_meta": {
+    "code": "es",
+    "name": "Spanish"
+  }
+}

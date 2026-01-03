@@ -39,6 +39,10 @@
 #include "gtkutil/messagebox.h"
 
 #include <QOpenGLWidget>
+#include <QDragEnterEvent>
+#include <QDragMoveEvent>
+#include <QDropEvent>
+#include <QMimeData>
 #include <QMouseEvent>
 #include <QTimer>
 
@@ -59,6 +63,7 @@
 #include "select.h"
 #include "brushmanip.h"
 #include "selection.h"
+#include "assetdrop.h"
 #include "entity.h"
 #include "camwindow.h"
 #include "mainframe.h"
@@ -99,6 +104,18 @@ struct xywindow_globals_private_t
 
 xywindow_globals_t g_xywindow_globals;
 xywindow_globals_private_t g_xywindow_globals_private;
+
+bool XYWnd_showGrid(){
+	return g_xywindow_globals_private.d_showgrid;
+}
+
+bool XYWnd_showCoordinates(){
+	return g_xywindow_globals_private.show_coordinates;
+}
+
+int XYWnd_getMSAA(){
+	return g_xywindow_globals_private.m_MSAA;
+}
 
 const unsigned int RAD_NONE =    0x00;
 const unsigned int RAD_SHIFT =   0x01;
@@ -438,7 +455,7 @@ class XYGLWidget : public QOpenGLWidget
 	XYWnd& m_xywnd;
 	DeferredMotion m_deferred_motion;
 	FBO *m_fbo{};
-	qreal m_scale;
+	qreal m_scale{ 1.0 };
 public:
 	XYGLWidget( XYWnd& xywnd ) : QOpenGLWidget(), m_xywnd( xywnd ),
 		m_deferred_motion( [this]( const QMouseEvent& event ){
@@ -449,6 +466,7 @@ public:
 			} )
 	{
 		setMouseTracking( true );
+		setAcceptDrops( true );
 	}
 
 	~XYGLWidget() override {
@@ -539,6 +557,59 @@ protected:
 		if( !m_xywnd.Active() ){
 			g_pParentWnd->SetActiveXY( &m_xywnd );
 		}
+	}
+	void dragEnterEvent( QDragEnterEvent *event ) override {
+		if ( canAcceptDrop( event->mimeData() ) ) {
+			event->acceptProposedAction();
+		}
+	}
+	void dragMoveEvent( QDragMoveEvent *event ) override {
+		if ( canAcceptDrop( event->mimeData() ) ) {
+			event->acceptProposedAction();
+		}
+	}
+	void dropEvent( QDropEvent *event ) override {
+#if QT_VERSION >= QT_VERSION_CHECK( 6, 0, 0 )
+		const QPointF pos = event->position();
+#else
+		const QPointF pos = event->pos();
+#endif
+		if ( handleDrop( pos, event->mimeData() ) ) {
+			event->acceptProposedAction();
+		}
+	}
+private:
+	bool canAcceptDrop( const QMimeData* mimeData ) const {
+		if ( mimeData == nullptr ) {
+			return false;
+		}
+		return mimeData->hasFormat( kEntityBrowserMimeType ) || mimeData->hasFormat( kSoundBrowserMimeType );
+	}
+	bool handleDrop( const QPointF& position, const QMimeData* mimeData ) const {
+		if ( !canAcceptDrop( mimeData ) ) {
+			return false;
+		}
+
+		const QPointF scaled = position * m_scale;
+		Vector3 point = m_xywnd.XY_ToPoint( static_cast<int>( scaled.x() ), static_cast<int>( scaled.y() ), true );
+		const int nDim = m_xywnd.GetViewType();
+		const float fWorkMid = float_mid( Select_getWorkZone().d_work_min[nDim], Select_getWorkZone().d_work_max[nDim] );
+		point[nDim] = float_snapped( fWorkMid, GetGridSize() );
+
+		if ( mimeData->hasFormat( kEntityBrowserMimeType ) ) {
+			const QByteArray payload = mimeData->data( kEntityBrowserMimeType );
+			if ( !payload.isEmpty() ) {
+				return AssetDrop_handleEntityClass( payload.constData(), point );
+			}
+		}
+		if ( mimeData->hasFormat( kSoundBrowserMimeType ) ) {
+			const QByteArray payload = mimeData->data( kSoundBrowserMimeType );
+			if ( !payload.isEmpty() ) {
+				return AssetDrop_handleSoundPath( payload.constData(), point );
+			}
+		}
+
+		return false;
 	}
 };
 

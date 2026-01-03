@@ -72,7 +72,7 @@ char MenuList[100] = "";
 
 const char* init( void* hApp, void* pMainWidget ){
 	main_window = static_cast<QWidget*>( pMainWidget );
-	return "Initializing SunPlug for GTKRadiant";
+	return "Initializing SunPlug for VibeRadiant";
 }
 const char* getName(){
 	return "SunPlug"; // name that is shown in the menue
@@ -167,7 +167,7 @@ Entity* Scene_FindEntityByClass( const char* name ){
 
 // About dialog
 void about_plugin_window(){
-	GlobalRadiant().m_pfnMessageBox( SunPlug::main_window, "SunPlug v1.0 for NetRadiant 1.5\nby Topsun", "About SunPlug", EMessageBoxType::Info, 0 );
+	GlobalRadiant().m_pfnMessageBox( SunPlug::main_window, "SunPlug v1.0 for VibeRadiant\nby Topsun", "About SunPlug", EMessageBoxType::Info, 0 );
 }
 
 

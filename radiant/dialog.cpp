@@ -41,6 +41,7 @@
 #include "gtkutil/spinbox.h"
 
 #include "gtkmisc.h"
+#include "gtkutil/i18n.h"
 
 #include <QCheckBox>
 #include "gtkutil/combobox.h"
@@ -398,7 +399,7 @@ QDialog::DialogCode Dialog::DoModal(){
 
 
 QCheckBox* Dialog::addCheckBox( QGridLayout* grid, const char* name, const char* flag, const BoolImportCallback& importCallback, const BoolExportCallback& exportCallback ){
-	auto *check = new QCheckBox( flag );
+	auto *check = new QCheckBox( i18n::tr( flag ) );
 	AddBoolToggleData( *check, importCallback, exportCallback );
 	DialogGrid_packRow( grid, check, name );
 	return check;
@@ -412,7 +413,7 @@ QComboBox* Dialog::addCombo( QGridLayout* grid, const char* name, StringArrayRan
 	auto *combo = new ComboBox;
 
 	for ( const char *value : values )
-		combo->addItem( value );
+		combo->addItem( i18n::tr( value ) );
 
 	AddIntComboData( *combo, importCallback, exportCallback );
 
@@ -508,7 +509,7 @@ QWidget* Dialog::addSpinner( QGridLayout* grid, const char* name, int lower, int
 	auto *spin = new SpinBox( lower, upper );
 	spin->setStepType( QAbstractSpinBox::StepType::AdaptiveDecimalStepType );
 	AddIntSpinnerData( *spin, importCallback, exportCallback );
-	DialogGrid_packRow( grid, spin, new SpinBoxLabel( name, spin ) );
+	DialogGrid_packRow( grid, spin, new SpinBoxLabel( i18n::tr( name ), spin ) );
 	return spin;
 }
 
@@ -520,7 +521,7 @@ QWidget* Dialog::addSpinner( QGridLayout* grid, const char* name, double lower, 
 	auto *spin = new DoubleSpinBox( lower, upper, 0, decimals );
 	spin->setStepType( QAbstractSpinBox::StepType::AdaptiveDecimalStepType );
 	AddFloatSpinnerData( *spin, importCallback, exportCallback );
-	DialogGrid_packRow( grid, spin, new SpinBoxLabel( name, spin ) );
+	DialogGrid_packRow( grid, spin, new SpinBoxLabel( i18n::tr( name ), spin ) );
 	return spin;
 }
 

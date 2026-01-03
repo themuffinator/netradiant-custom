@@ -22,6 +22,95 @@
 #pragma once
 
 #include "generic/vector.h"
+#include <string>
+
+enum class TextureFindMatchMode
+{
+	Exact = 0,
+	Contains,
+	StartsWith,
+	EndsWith,
+	Wildcard,
+	Regex,
+};
+
+enum class TextureReplaceMode
+{
+	ReplaceFull = 0,
+	ReplaceMatch,
+};
+
+enum class TextureFindScope
+{
+	All = 0,
+	Selected,
+	SelectedFaces,
+};
+
+enum class TextureShaderFilter
+{
+	Any = 0,
+	DefaultOnly,
+	RealOnly,
+};
+
+enum class TextureUsageFilter
+{
+	Any = 0,
+	InUseOnly,
+	NotInUse,
+};
+
+enum class EntityFindScope
+{
+	All = 0,
+	Selected,
+};
+
+struct TextureFindReplaceOptions
+{
+	std::string find;
+	std::string replace;
+	std::string includeFilter;
+	std::string excludeFilter;
+	std::string surfaceFlagsRequire;
+	std::string surfaceFlagsExclude;
+	std::string contentFlagsRequire;
+	std::string contentFlagsExclude;
+	TextureFindMatchMode matchMode = TextureFindMatchMode::Exact;
+	TextureReplaceMode replaceMode = TextureReplaceMode::ReplaceFull;
+	TextureFindScope scope = TextureFindScope::All;
+	TextureShaderFilter shaderFilter = TextureShaderFilter::Any;
+	TextureUsageFilter usageFilter = TextureUsageFilter::Any;
+	bool caseSensitive = false;
+	bool matchNameOnly = false;
+	bool autoPrefix = true;
+	bool visibleOnly = true;
+	bool includeBrushes = true;
+	bool includePatches = true;
+	int minWidth = 0;
+	int maxWidth = 0;
+	int minHeight = 0;
+	int maxHeight = 0;
+};
+
+struct EntityFindReplaceOptions
+{
+	std::string find;
+	std::string replace;
+	std::string keyFilter;
+	std::string classFilter;
+	TextureFindMatchMode matchMode = TextureFindMatchMode::Exact;
+	TextureReplaceMode replaceMode = TextureReplaceMode::ReplaceFull;
+	EntityFindScope scope = EntityFindScope::All;
+	bool caseSensitive = false;
+	bool visibleOnly = true;
+	bool searchKeys = false;
+	bool searchValues = true;
+	bool replaceKeys = false;
+	bool replaceValues = true;
+	bool includeWorldspawn = false;
+};
 
 void Select_GetBounds( Vector3& mins, Vector3& maxs );
 
@@ -47,7 +136,8 @@ void Select_SetFlags( const class ContentsFlagsValue& flags );
 void Select_ProjectTexture( const class texdef_t& texdef, const Vector3* direction );
 void Select_ProjectTexture( const class TextureProjection& projection, const Vector3& normal );
 void Select_FitTexture( float horizontal = 1, float vertical = 1, bool only_dimension = false );
-void FindReplaceTextures( const char* pFind, const char* pReplace, bool bSelected );
+void FindReplaceTextures( const TextureFindReplaceOptions& options );
+void FindReplaceEntities( const EntityFindReplaceOptions& options );
 
 void Select_ShowAllHidden();
 void Select_registerCommands();

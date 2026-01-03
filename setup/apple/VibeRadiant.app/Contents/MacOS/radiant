@@ -1,10 +1,10 @@
 #!/bin/bash
 
 RADIANT_HOME=$(dirname "$0")
-RADIANT_HOME=${RADIANT_HOME/NetRadiant.app*/NetRadiant.app}
+RADIANT_HOME=${RADIANT_HOME/VibeRadiant.app*/VibeRadiant.app}
 
 echo
-echo "Starting NetRadiant in ${RADIANT_HOME}"
+echo "Starting VibeRadiant in ${RADIANT_HOME}"
 echo
 
 set -x

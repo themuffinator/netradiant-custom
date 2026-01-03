@@ -86,6 +86,10 @@ CPPFLAGS_QTSVG     ?= $(shell PKG_CONFIG_PATH=$(PKG_CONFIG_PATH) $(PKGCONFIG) Qt
 LIBS_QTSVG         ?= $(shell PKG_CONFIG_PATH=$(PKG_CONFIG_PATH) $(PKGCONFIG) Qt5Svg --libs-only-L --libs-only-l $(STDERR_TO_DEVNULL))
 CPPFLAGS_QTSVG     := $(CPPFLAGS_QTSVG)
 LIBS_QTSVG         := $(LIBS_QTSVG)
+CPPFLAGS_QTNETWORK ?= $(shell PKG_CONFIG_PATH=$(PKG_CONFIG_PATH) $(PKGCONFIG) Qt5Network --cflags $(STDERR_TO_DEVNULL)) -DQT_NO_KEYWORDS
+LIBS_QTNETWORK     ?= $(shell PKG_CONFIG_PATH=$(PKG_CONFIG_PATH) $(PKGCONFIG) Qt5Network --libs-only-L --libs-only-l $(STDERR_TO_DEVNULL))
+CPPFLAGS_QTNETWORK := $(CPPFLAGS_QTNETWORK)
+LIBS_QTNETWORK     := $(LIBS_QTNETWORK)
 ASSIMP_INTERNAL    ?= no
 CPPFLAGS_ASSIMP    ?= $(shell PKG_CONFIG_PATH=$(PKG_CONFIG_PATH) $(PKGCONFIG) assimp --cflags $(STDERR_TO_DEVNULL))
 LIBS_ASSIMP        ?= $(shell PKG_CONFIG_PATH=$(PKG_CONFIG_PATH) $(PKGCONFIG) assimp --libs-only-L --libs-only-l $(STDERR_TO_DEVNULL))
@@ -290,11 +294,17 @@ ifneq "$(filter MINGW64_NT%,$(UNAME_S))" ""
 endif
 
 # VERSION!
-RADIANT_VERSION_NUMBER = 1.6.0
-RADIANT_VERSION = $(RADIANT_VERSION_NUMBER)n
-RADIANT_MAJOR_VERSION = 6
-RADIANT_MINOR_VERSION = 0
+VERSION_FILE ?= VERSION
+RADIANT_VERSION_NUMBER ?= $(shell $(CAT) $(VERSION_FILE) $(STDERR_TO_DEVNULL))
+RADIANT_VERSION_SUFFIX ?=
+RADIANT_VERSION = $(RADIANT_VERSION_NUMBER)$(RADIANT_VERSION_SUFFIX)
+RADIANT_VERSION_PARTS := $(subst ., ,$(RADIANT_VERSION_NUMBER))
+RADIANT_MAJOR_VERSION ?= $(word 2,$(RADIANT_VERSION_PARTS))
+RADIANT_MINOR_VERSION ?= $(word 3,$(RADIANT_VERSION_PARTS))
 Q3MAP_VERSION = 2.5.17n
+
+RADIANT_UPDATE_URL ?= https://github.com/Garux/VibeRadiant/releases/latest/download/update.json
+RADIANT_RELEASES_URL ?= https://github.com/Garux/VibeRadiant/releases/latest
 
 # Executable extension
 RADIANT_EXECUTABLE := $(EXE)
@@ -305,7 +315,7 @@ ifneq ($(GIT_VERSION),)
 	Q3MAP_VERSION := $(Q3MAP_VERSION)-git-$(GIT_VERSION)
 endif
 
-CPPFLAGS_COMMON += -DRADIANT_VERSION="\"$(RADIANT_VERSION)\"" -DRADIANT_MAJOR_VERSION="\"$(RADIANT_MAJOR_VERSION)\"" -DRADIANT_MINOR_VERSION="\"$(RADIANT_MINOR_VERSION)\"" -DRADIANT_ABOUTMSG="\"$(RADIANT_ABOUTMSG)\"" -DQ3MAP_VERSION="\"$(Q3MAP_VERSION)\"" -DRADIANT_EXECUTABLE="\"$(RADIANT_EXECUTABLE)\""
+CPPFLAGS_COMMON += -DRADIANT_VERSION_NUMBER="\"$(RADIANT_VERSION_NUMBER)\"" -DRADIANT_VERSION="\"$(RADIANT_VERSION)\"" -DRADIANT_MAJOR_VERSION="\"$(RADIANT_MAJOR_VERSION)\"" -DRADIANT_MINOR_VERSION="\"$(RADIANT_MINOR_VERSION)\"" -DRADIANT_ABOUTMSG="\"$(RADIANT_ABOUTMSG)\"" -DQ3MAP_VERSION="\"$(Q3MAP_VERSION)\"" -DRADIANT_EXECUTABLE="\"$(RADIANT_EXECUTABLE)\"" -DRADIANT_UPDATE_URL="\"$(RADIANT_UPDATE_URL)\"" -DRADIANT_RELEASES_URL="\"$(RADIANT_RELEASES_URL)\""
 
 .PHONY: all
 all: \
@@ -403,6 +413,7 @@ dependencies-check:
 	checkheader Qt5Gui QGuiApplication QGuiApplication::exec "$(CPPFLAGS_QTGUI)" "$(LIBS_QTGUI)"; \
 	checkheader Qt5Widgets QApplication QApplication::exec "$(CPPFLAGS_QTWIDGETS)" "$(LIBS_QTWIDGETS)"; \
 	checkheader Qt5Svg QSvgWidget QSvgWidget::mouseGrabber "$(CPPFLAGS_QTSVG)" "$(LIBS_QTSVG)"; \
+	checkheader Qt5Network QNetworkAccessManager QNetworkAccessManager::networkAccessible "$(CPPFLAGS_QTNETWORK)" "$(LIBS_QTNETWORK)"; \
 	[ "$(ASSIMP_INTERNAL)" != "yes" ] && checkheader libassimp-dev assimp/Importer.hpp Assimp::Importer::MaxLenHint "$(CPPFLAGS_ASSIMP)" "$(LIBS_ASSIMP)"; \
 	[ "$(OS)" != "Win32" ] && checkheader libc6-dev dlfcn.h dlopen "$(CPPFLAGS_DL)" "$(LIBS_DL)"; \
 	checkheader zlib1g-dev zlib.h zlibVersion "$(CPPFLAGS_ZLIB)" "$(LIBS_ZLIB)"; \
@@ -870,10 +881,12 @@ libwebplib.$(A): \
 	libs/webplib/webplib.o \
 
 $(INSTALLDIR)/radiant.$(EXE): LDFLAGS_EXTRA := $(MWINDOWS)
-$(INSTALLDIR)/radiant.$(EXE): LIBS_EXTRA := $(LIBS_GL) $(LIBS_DL) $(LIBS_XML) $(LIBS_GLIB) $(LIBS_QTWIDGETS) $(LIBS_QTSVG) $(LIBS_ZLIB)
-$(INSTALLDIR)/radiant.$(EXE): CPPFLAGS_EXTRA := $(CPPFLAGS_GL) $(CPPFLAGS_DL) $(CPPFLAGS_XML) $(CPPFLAGS_GLIB) $(CPPFLAGS_QTWIDGETS) $(CPPFLAGS_QTSVG) -Ilibs -Iinclude
+$(INSTALLDIR)/radiant.$(EXE): LIBS_EXTRA := $(LIBS_GL) $(LIBS_DL) $(LIBS_XML) $(LIBS_GLIB) $(LIBS_QTWIDGETS) $(LIBS_QTSVG) $(LIBS_QTNETWORK) $(LIBS_ZLIB)
+$(INSTALLDIR)/radiant.$(EXE): CPPFLAGS_EXTRA := $(CPPFLAGS_GL) $(CPPFLAGS_DL) $(CPPFLAGS_XML) $(CPPFLAGS_GLIB) $(CPPFLAGS_QTWIDGETS) $(CPPFLAGS_QTSVG) $(CPPFLAGS_QTNETWORK) -Ilibs -Iinclude
 $(INSTALLDIR)/radiant.$(EXE): \
 	radiant/autosave.o \
+	radiant/assetbrowser.o \
+	radiant/assetdrop.o \
 	radiant/brushmanip.o \
 	radiant/brushmodule.o \
 	radiant/brushnode.o \
@@ -894,6 +907,7 @@ $(INSTALLDIR)/radiant.$(EXE): \
 	radiant/eclass_fgd.o \
 	radiant/eclass.o \
 	radiant/eclass_xml.o \
+	radiant/entitybrowser.o \
 	radiant/entityinspector.o \
 	radiant/entitylist.o \
 	radiant/entity.o \
@@ -912,6 +926,8 @@ $(INSTALLDIR)/radiant.$(EXE): \
 	radiant/help.o \
 	radiant/image.o \
 	radiant/layerswindow.o \
+	radiant/linkedgroups.o \
+	radiant/localization.o \
 	radiant/mainframe.o \
 	radiant/main.o \
 	radiant/map.o \
@@ -936,11 +952,13 @@ $(INSTALLDIR)/radiant.$(EXE): \
 	radiant/referencecache.o \
 	radiant/renderer.o \
 	radiant/renderstate.o \
+	radiant/previewlighting.o \
 	radiant/scenegraph.o \
 	radiant/selection.o \
 	radiant/select.o \
 	radiant/server.o \
 	radiant/sockets.o \
+	radiant/soundbrowser.o \
 	radiant/stacktrace.o \
 	radiant/surfacedialog.o \
 	radiant/texmanip.o \
@@ -949,6 +967,7 @@ $(INSTALLDIR)/radiant.$(EXE): \
 	radiant/theme.o \
 	radiant/tools.o \
 	radiant/treemodel.o \
+	radiant/update.o \
 	radiant/undo.o \
 	radiant/url.o \
 	radiant/view.o \
@@ -957,6 +976,7 @@ $(INSTALLDIR)/radiant.$(EXE): \
 	radiant/windowobservers.o \
 	radiant/xmlstuff.o \
 	radiant/xywindow.o \
+	radiant/zwindow.o \
 	libcommandlib.$(A) \
 	libgtkutil.$(A) \
 	libl_net.$(A) \
@@ -982,6 +1002,7 @@ libgtkutil.$(A): \
 	libs/gtkutil/glfont.o \
 	libs/gtkutil/glwidget.o \
 	libs/gtkutil/guisettings.o \
+	libs/gtkutil/i18n.o \
 	libs/gtkutil/idledraw.o \
 	libs/gtkutil/image.o \
 	libs/gtkutil/menu.o \
@@ -1400,12 +1421,12 @@ endif
 # release building... NOT for general users
 # these may use tools not in the list that is checked by the build system
 release-src: BUILD_DATE := $(shell date +%Y%m%d)
-release-src: INSTALLDIR := netradiant-$(RADIANT_VERSION_NUMBER)-$(BUILD_DATE)
+release-src: INSTALLDIR := viberadiant-$(RADIANT_VERSION_NUMBER)-$(BUILD_DATE)
 release-src:
 	$(GIT) archive --format=tar --prefix=$(INSTALLDIR)/ HEAD | bzip2 > ../$(INSTALLDIR).tar.bz2
 
 release-win32: BUILD_DATE := $(shell date +%Y%m%d)
-release-win32: INSTALLDIR := netradiant-$(RADIANT_VERSION_NUMBER)-$(BUILD_DATE)
+release-win32: INSTALLDIR := viberadiant-$(RADIANT_VERSION_NUMBER)-$(BUILD_DATE)
 release-win32:
 	$(MAKE) all INSTALLDIR=$(INSTALLDIR) MAKEFILE_CONF=cross-Makefile.conf RADIANT_ABOUTMSG="Official release build" BUILD=release
 	7za a -sfx../../../../../../../../../../$(HOME)/7z.sfx ../$(INSTALLDIR)-win32-7z.exe $(INSTALLDIR)/

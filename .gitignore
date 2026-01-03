@@ -3,6 +3,7 @@
 /games/
 /install/
 /.vscode/
+/.vs/
 /.idea/
 /.cache/
 /.clang*

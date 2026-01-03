@@ -56,7 +56,7 @@ enum EMessageBoxReturn
 
 // simple Message Box, see above for the 'type' flags
 //! \p buttons is combination of \enum EMessageBoxReturn flags or 0 for buttons, respecting \enum class EMessageBoxType
-typedef EMessageBoxReturn ( *PFN_QERAPP_MESSAGEBOX )( QWidget *parent, const char* text, const char* caption /* = "NetRadiant"*/, EMessageBoxType type /* = Info*/, int buttons /* = 0*/ );
+typedef EMessageBoxReturn ( *PFN_QERAPP_MESSAGEBOX )( QWidget *parent, const char* text, const char* caption /* = "VibeRadiant"*/, EMessageBoxType type /* = Info*/, int buttons /* = 0*/ );
 
 // file and directory selection functions return null if the user hits cancel
 // - 'title' is the dialog title (can be null)

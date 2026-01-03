@@ -288,14 +288,14 @@ void environment_init( int argc, char* argv[] ){
 		StringOutputStream home( 256 );
 		if ( !appdata || string_empty( appdata ) ) {
 			ERROR_MESSAGE( "Application Data folder not available.\n"
-			               "Radiant will use C:\\ for user preferences.\n" );
+			               "VibeRadiant will use C:\\ for user preferences.\n" );
 			home << "C:";
 		}
 		else
 		{
 			home << PathCleaned( appdata );
 		}
-		home << "/NetRadiantSettings/";
+		home << "/VibeRadiantSettings/";
 		Q_mkdir( home );
 		home_path = home;
 	}

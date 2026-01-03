@@ -44,6 +44,8 @@
 #include "ifilter.h"
 #include "nameable.h"
 #include "moduleobserver.h"
+#include "linkedgroups.h"
+#include "clippertool.h"
 
 #include "cullable.h"
 #include "renderable.h"
@@ -61,6 +63,11 @@
 
 #include "winding.h"
 #include "brush_primit.h"
+
+namespace scene
+{
+class Node;
+}
 
 const unsigned int BRUSH_DETAIL_FLAG = 27;
 const unsigned int BRUSH_DETAIL_MASK = ( 1 << BRUSH_DETAIL_FLAG );
@@ -1778,6 +1785,9 @@ public:
 			m_planeChanged = true;
 			aabbChanged();
 			m_lightsChanged();
+			if ( m_node != 0 ) {
+				LinkedGroups_MarkNodeChanged( *m_node );
+			}
 		}
 	}
 	void shaderChanged() override {
@@ -3051,19 +3061,129 @@ public:
 
 class BrushClipPlane : public OpenGLRenderable
 {
+	struct ClipVolumeFace
+	{
+		Winding winding;
+		Vector3 normal;
+		bool isCutPlane;
+	};
+
 	Plane3 m_plane;
 	Winding m_winding;
-	static Shader* m_state;
+	PlanePoints m_planePoints;
+	std::vector<ClipVolumeFace> m_volumeFaces;
+
+	static Shader* m_state_nrc;
+	static Shader* m_state_gtk;
+	static Shader* m_state_vibe_fill;
+	static Shader* m_state_vibe_cutline;
+
+	void updateClipVolume( const Brush& brush ){
+		m_volumeFaces.clear();
+		if ( !plane3_valid( m_plane ) ) {
+			return;
+		}
+
+		brush.evaluateBRep();
+		brushsplit_t split;
+		for ( const auto& face : brush )
+		{
+			if ( face->contributes() ) {
+				split += Winding_ClassifyPlane( face->getWinding(), m_plane );
+			}
+		}
+		if ( split.counts[ePlaneFront] == 0 ) {
+			return;
+		}
+
+		Brush clipped( brush );
+		const PlanePoints clipPoints{ m_planePoints[0], m_planePoints[2], m_planePoints[1] };
+		const Plane3 cutPlane = plane3_for_points( clipPoints );
+
+		if ( split.counts[ePlaneBack] != 0 ) {
+			const char* shader = nullptr;
+			for ( const auto& face : clipped )
+			{
+				if ( face->contributes() ) {
+					shader = face->getShader().getShader();
+					break;
+				}
+			}
+			if ( shader == nullptr ) {
+				shader = "_default";
+			}
+
+			TextureProjection projection;
+			TexDef_Construct_Default( projection );
+			if ( clipped.addPlane( clipPoints[0], clipPoints[1], clipPoints[2], shader, projection ) == 0 ) {
+				return;
+			}
+			clipped.removeEmptyFaces();
+			if ( clipped.empty() ) {
+				return;
+			}
+		}
+
+		clipped.evaluateBRep();
+		m_volumeFaces.reserve( clipped.size() );
+		for ( const auto& face : clipped )
+		{
+			if ( !face->contributes() ) {
+				continue;
+			}
+			ClipVolumeFace entry;
+			entry.winding = face->getWinding();
+			entry.normal = face->plane3().normal();
+			entry.isCutPlane = plane3_valid( cutPlane )
+				&& ( plane3_equal( face->plane3(), cutPlane ) || plane3_equal( face->plane3(), plane3_flipped( cutPlane ) ) );
+			m_volumeFaces.push_back( entry );
+		}
+	}
+
+	void renderVolumeWireframe() const {
+		for ( const auto& face : m_volumeFaces )
+		{
+			if ( face.winding.numpoints == 0 ) {
+				continue;
+			}
+			Winding_DrawWireframe( face.winding );
+		}
+	}
+
+	void renderVolumeFill( RenderStateFlags state ) const {
+		for ( const auto& face : m_volumeFaces )
+		{
+			if ( face.winding.numpoints == 0 ) {
+				continue;
+			}
+			Winding_Draw( face.winding, face.normal, state );
+		}
+	}
+
+	void renderCutLine() const {
+		if ( m_winding.numpoints == 0 ) {
+			return;
+		}
+		Winding_DrawWireframe( m_winding );
+	}
+
 public:
 	static void constructStatic(){
-		m_state = GlobalShaderCache().capture( "$CLIPPER_OVERLAY" );
+		m_state_nrc = GlobalShaderCache().capture( "$CLIPPER_OVERLAY" );
+		m_state_gtk = GlobalShaderCache().capture( "$CLIPPER_VOLUME_WIRE" );
+		m_state_vibe_fill = GlobalShaderCache().capture( "$CLIPPER_VIBE_FILL" );
+		m_state_vibe_cutline = GlobalShaderCache().capture( "$CLIPPER_VIBE_CUTLINE" );
 	}
 	static void destroyStatic(){
 		GlobalShaderCache().release( "$CLIPPER_OVERLAY" );
+		GlobalShaderCache().release( "$CLIPPER_VOLUME_WIRE" );
+		GlobalShaderCache().release( "$CLIPPER_VIBE_FILL" );
+		GlobalShaderCache().release( "$CLIPPER_VIBE_CUTLINE" );
 	}
 
-	void setPlane( const Brush& brush, const Plane3& plane ){
+	void setPlane( const Brush& brush, const Plane3& plane, const PlanePoints& planePoints ){
 		m_plane = plane;
+		m_planePoints = planePoints;
 		if ( plane3_valid( m_plane ) ) {
 			brush.windingForClipPlane( m_winding, m_plane );
 		}
@@ -3071,14 +3191,37 @@ public:
 		{
 			m_winding.resize( 0 );
 		}
+		updateClipVolume( brush );
 	}
 
 	void render( RenderStateFlags state ) const override {
+		const int visual = Clipper_getVolumeVisual();
+		if ( visual == eClipperVolumeVisualGtk ) {
+			renderVolumeWireframe();
+			return;
+		}
+
+		if ( visual == eClipperVolumeVisualVibe ) {
+			if ( state & RENDER_POLYGONSTIPPLE ) {
+				renderVolumeFill( state );
+			}
+			else if ( state & RENDER_LINESTIPPLE ) {
+				renderCutLine();
+			}
+			return;
+		}
+
 		if ( ( state & RENDER_FILL ) != 0 ) {
+			if ( m_winding.numpoints == 0 ) {
+				return;
+			}
 			Winding_Draw( m_winding, m_plane.normal(), state );
 		}
 		else
 		{
+			if ( m_winding.numpoints == 0 ) {
+				return;
+			}
 			Winding_DrawWireframe( m_winding );
 
 			// also draw a line indicating the direction of the cut
@@ -3092,8 +3235,33 @@ public:
 	}
 
 	void render( Renderer& renderer, const VolumeTest& volume, const Matrix4& localToWorld ) const {
-		renderer.SetState( m_state, Renderer::eWireframeOnly );
-		renderer.SetState( m_state, Renderer::eFullMaterials );
+		const int visual = Clipper_getVolumeVisual();
+		if ( visual == eClipperVolumeVisualGtk ) {
+			if ( m_volumeFaces.empty() ) {
+				return;
+			}
+			renderer.SetState( m_state_gtk, Renderer::eWireframeOnly );
+			renderer.SetState( m_state_gtk, Renderer::eFullMaterials );
+			renderer.addRenderable( *this, localToWorld );
+			return;
+		}
+
+		if ( visual == eClipperVolumeVisualVibe ) {
+			if ( !m_volumeFaces.empty() ) {
+				renderer.SetState( m_state_vibe_fill, Renderer::eWireframeOnly );
+				renderer.SetState( m_state_vibe_fill, Renderer::eFullMaterials );
+				renderer.addRenderable( *this, localToWorld );
+			}
+			if ( m_winding.numpoints != 0 ) {
+				renderer.SetState( m_state_vibe_cutline, Renderer::eWireframeOnly );
+				renderer.SetState( m_state_vibe_cutline, Renderer::eFullMaterials );
+				renderer.addRenderable( *this, localToWorld );
+			}
+			return;
+		}
+
+		renderer.SetState( m_state_nrc, Renderer::eWireframeOnly );
+		renderer.SetState( m_state_nrc, Renderer::eFullMaterials );
 		renderer.addRenderable( *this, localToWorld );
 	}
 };
@@ -3679,7 +3847,7 @@ public:
 		}
 	}
 	void testSelectComponents( Selector& selector, SelectionTest& test, SelectionSystem::EComponentMode mode ) override {
-		test.BeginMesh( localToWorld() );
+		test.BeginMesh( localToWorld(), mode == SelectionSystem::eFace );
 
 		switch ( mode )
 		{
@@ -4042,8 +4210,8 @@ public:
 	}
 	typedef MemberCaller<BrushInstance, void(), &BrushInstance::applyTransform> ApplyTransformCaller;
 
-	void setClipPlane( const Plane3& plane ){
-		m_clipPlane.setPlane( m_brush, plane );
+	void setClipPlane( const Plane3& plane, const PlanePoints& planePoints ){
+		m_clipPlane.setPlane( m_brush, plane, planePoints );
 	}
 
 	bool testLight( const RendererLight& light ) const override {

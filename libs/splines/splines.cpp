@@ -225,6 +225,8 @@ void idSplineList::addToRenderer() {
 void idSplineList::buildSpline() {
 	//int start = Sys_Milliseconds();
 	clearSpline();
+	totalDistanceCache = 0.0f;
+	idVec3* lastPoint = nullptr;
 	for ( int i = 3; i < controlPoints.Num(); i++ ) {
 		for ( float tension = 0.0f; tension < 1.001f; tension += granularity ) {
 			float x = 0;
@@ -235,7 +237,14 @@ void idSplineList::buildSpline() {
 				y += controlPoints[i - ( 3 - j )]->y * calcSpline( j, tension );
 				z += controlPoints[i - ( 3 - j )]->z * calcSpline( j, tension );
 			}
-			splinePoints.Append( new idVec3( x, y, z ) );
+			idVec3* point = new idVec3( x, y, z );
+			if ( lastPoint != nullptr ) {
+				idVec3 temp = *lastPoint;
+				temp -= *point;
+				totalDistanceCache += temp.Length();
+			}
+			splinePoints.Append( point );
+			lastPoint = point;
 		}
 	}
 	dirty = false;
@@ -301,8 +310,6 @@ void idSplineList::draw( bool editMode ) {
 
 float idSplineList::totalDistance() {
 
-	// FIXME: save dist and return
-	//
 	if ( controlPoints.Num() == 0 ) {
 		return 0.0;
 	}
@@ -311,15 +318,7 @@ float idSplineList::totalDistance() {
 		buildSpline();
 	}
 
-	float dist = 0.0;
-	idVec3 temp;
-	int count = splinePoints.Num();
-	for ( int i = 1; i < count; i++ ) {
-		temp = *splinePoints[i - 1];
-		temp -= *splinePoints[i];
-		dist += temp.Length();
-	}
-	return dist;
+	return totalDistanceCache;
 }
 
 void idSplineList::initPosition( long bt, long totalTime ) {

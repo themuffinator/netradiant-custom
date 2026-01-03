@@ -57,17 +57,17 @@ void Sys_LogFile( bool enable ){
 		// open a file to log the console
 		// the file handle is g_hLogFile
 		// the log file is erased
-		const auto name = StringStream( SettingsPath_get(), "radiant.log" );
+		const auto name = StringStream( SettingsPath_get(), "viberadiant.log" );
 		g_hLogFile = fopen( name, "w" );
 		if ( g_hLogFile != 0 ) {
 			globalOutputStream() << "Started logging to " << name << '\n';
 			time_t localtime;
 			time( &localtime );
 			globalOutputStream() << "Today is: " << ctime( &localtime )
-			                     << "This is NetRadiant '" RADIANT_VERSION "' compiled " __DATE__ "\n" RADIANT_ABOUTMSG "\n";
+			                     << "This is VibeRadiant '" RADIANT_VERSION "' compiled " __DATE__ "\n" RADIANT_ABOUTMSG "\n";
 		}
 		else{
-			qt_MessageBox( 0, "Failed to create log file, check write permissions in Radiant directory.\n",
+			qt_MessageBox( 0, "Failed to create log file, check write permissions in VibeRadiant directory.\n",
 			                "Console logging", EMessageBoxType::Error );
 		}
 	}

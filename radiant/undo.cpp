@@ -24,6 +24,7 @@
 #include "debugging/debugging.h"
 
 #include "iundo.h"
+#include "linkedgroups.h"
 #include "preferencesystem.h"
 #include "string/string.h"
 #include "generic/callback.h"
@@ -287,6 +288,7 @@ public:
 		return changed;
 	}
 	void start() override {
+		LinkedGroups_OnCommandStart();
 		m_redo_stack.clear();
 		if ( m_undo_stack.size() == m_undo_levels ) {
 			m_undo_stack.pop_front();
@@ -295,6 +297,7 @@ public:
 		trackersBegin();
 	}
 	void finish( const char* command ) override {
+		LinkedGroups_OnCommandFinish();
 		if ( finishUndo( command ) ) {
 			globalOutputStream() << command << '\n';
 		}
@@ -407,7 +410,9 @@ void Undo_registerPreferencesPage( RadiantUndoSystem& undo ){
 	PreferencesDialog_addSettingsPage( ReferenceCaller<RadiantUndoSystem, void(PreferenceGroup&), Undo_constructPage>( undo ) );
 }
 
-class UndoSystemDependencies : public GlobalPreferenceSystemModuleRef
+class UndoSystemDependencies :
+	public GlobalPreferenceSystemModuleRef,
+	public GlobalLinkedGroupsModuleRef
 {
 };
 

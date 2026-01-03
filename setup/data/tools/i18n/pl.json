@@ -1,0 +1,31 @@
+{
+  "&Build": "&Buduj",
+  "&Curve": "&Krzywa",
+  "&Edit": "&Edycja",
+  "&File": "&Plik",
+  "&Grid": "&Siatka",
+  "&Help": "Pomo&c",
+  "&Plugins": "&Wtyczki",
+  "Auto (System)": "Automatycznie (System)",
+  "Brush": "P\u0119dzel",
+  "Display Preferences": "Ustawienia wy\u015bwietlania",
+  "E&ntity": "&Encja",
+  "E&xit": "&Zako\u0144cz",
+  "Engine Path Configuration": "Konfiguracja \u015bcie\u017cki silnika",
+  "Game Settings": "Ustawienia gry",
+  "General Settings": "Ustawienia og\u00f3lne",
+  "Global Preferences": "Ustawienia globalne",
+  "Interface Preferences": "Ustawienia interfejsu",
+  "Language": "J\u0119zyk",
+  "M&isc": "&R\u00f3\u017cne",
+  "M&odify": "&Modyfikuj",
+  "Path settings": "Ustawienia \u015bcie\u017cek",
+  "Path Settings": "Ustawienia \u015bcie\u017cek",
+  "Pre&ferences...": "&Ustawienia...",
+  "VibeRadiant Preferences": "Ustawienia VibeRadiant",
+  "Vie&w": "&Widok",
+  "_meta": {
+    "code": "pl",
+    "name": "Polish"
+  }
+}

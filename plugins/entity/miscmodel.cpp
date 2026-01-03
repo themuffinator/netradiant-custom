@@ -29,6 +29,8 @@
 #include "renderable.h"
 #include "editable.h"
 
+#include "linkedgroups.h"
+
 #include "selectionlib.h"
 #include "instancelib.h"
 #include "transformlib.h"
@@ -136,6 +138,7 @@ class MiscModel :
 {
 	EntityKeyValues m_entity;
 	KeyObserverMap m_keyObservers;
+	LinkedGroupsEntityObserver m_linkedGroupObserver;
 	RemapKeysObserver m_remapKeysObserver;
 	MatrixTransform m_transform;
 
@@ -219,6 +222,7 @@ public:
 
 	MiscModel( EntityClass* eclass, scene::Node& node, const Callback<void()>& transformChanged, const Callback<void()>& evaluateTransform ) :
 		m_entity( eclass ),
+		m_linkedGroupObserver( node ),
 		m_remapKeysObserver( SkinChangedCaller( *this ) ),
 		m_originKey( OriginChangedCaller( *this ) ),
 		m_origin( ORIGINKEY_IDENTITY ),
@@ -236,6 +240,7 @@ public:
 	}
 	MiscModel( const MiscModel& other, scene::Node& node, const Callback<void()>& transformChanged, const Callback<void()>& evaluateTransform ) :
 		m_entity( other.m_entity ),
+		m_linkedGroupObserver( node ),
 		m_remapKeysObserver( SkinChangedCaller( *this ) ),
 		m_originKey( OriginChangedCaller( *this ) ),
 		m_origin( ORIGINKEY_IDENTITY ),
@@ -259,6 +264,7 @@ public:
 			m_entity.instanceAttach( path_find_mapfile( path.begin(), path.end() ) );
 			m_entity.attach( m_keyObservers );
 			m_entity.attach( m_remapKeysObserver );
+			m_linkedGroupObserver.attach( m_entity );
 			{ // handle set default model key value
 				const EntityClass& eclass = m_entity.getEntityClass();
 				const char *key = eclass.miscmodel_key();
@@ -270,6 +276,7 @@ public:
 	}
 	void instanceDetach( const scene::Path& path ){
 		if ( --m_instanceCounter.m_count == 0 ) {
+			m_linkedGroupObserver.detach( m_entity );
 			m_entity.detach( m_remapKeysObserver );
 			m_entity.detach( m_keyObservers );
 			m_entity.instanceDetach( path_find_mapfile( path.begin(), path.end() ) );

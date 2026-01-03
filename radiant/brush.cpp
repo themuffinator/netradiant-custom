@@ -42,7 +42,10 @@ EBrushType Brush::m_type;
 double Brush::m_maxWorldCoord = 0;
 Shader* Brush::m_state_point;
 Shader* Brush::m_state_deeppoint;
-Shader* BrushClipPlane::m_state = 0;
+Shader* BrushClipPlane::m_state_nrc = 0;
+Shader* BrushClipPlane::m_state_gtk = 0;
+Shader* BrushClipPlane::m_state_vibe_fill = 0;
+Shader* BrushClipPlane::m_state_vibe_cutline = 0;
 Shader* BrushInstance::m_state_selpoint;
 Counter* BrushInstance::m_counter = 0;
 

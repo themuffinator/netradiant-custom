@@ -28,6 +28,8 @@
 #include "renderable.h"
 #include "editable.h"
 
+#include "linkedgroups.h"
+
 #include "selectionlib.h"
 #include "instancelib.h"
 #include "transformlib.h"
@@ -55,6 +57,7 @@ class Group
 {
 	EntityKeyValues m_entity;
 	KeyObserverMap m_keyObservers;
+	LinkedGroupsEntityObserver m_linkedGroupObserver;
 	MatrixTransform m_transform;
 	TraversableNodeSet m_traverse;
 
@@ -94,6 +97,7 @@ class Group
 public:
 	Group( EntityClass* eclass, scene::Node& node, const Callback<void()>& transformChanged, const Callback<void()>& evaluateTransform ) :
 		m_entity( eclass ),
+		m_linkedGroupObserver( node ),
 		m_filter( m_entity, node ),
 		m_named( m_entity ),
 		m_nameKeys( m_entity ),
@@ -109,6 +113,7 @@ public:
 	}
 	Group( const Group& other, scene::Node& node, const Callback<void()>& transformChanged, const Callback<void()>& evaluateTransform ) :
 		m_entity( other.m_entity ),
+		m_linkedGroupObserver( node ),
 		m_filter( m_entity, node ),
 		m_named( m_entity ),
 		m_nameKeys( m_entity ),
@@ -130,10 +135,12 @@ public:
 			m_entity.instanceAttach( path_find_mapfile( path.begin(), path.end() ) );
 			m_traverse.instanceAttach( path_find_mapfile( path.begin(), path.end() ) );
 			m_entity.attach( m_keyObservers );
+			m_linkedGroupObserver.attach( m_entity );
 		}
 	}
 	void instanceDetach( const scene::Path& path ){
 		if ( --m_instanceCounter.m_count == 0 ) {
+			m_linkedGroupObserver.detach( m_entity );
 			m_entity.detach( m_keyObservers );
 			m_traverse.instanceDetach( path_find_mapfile( path.begin(), path.end() ) );
 			m_entity.instanceDetach( path_find_mapfile( path.begin(), path.end() ) );
@@ -477,9 +484,11 @@ public:
 
 	void insert( scene::Node& child ) override {
 		m_instances.insert( child );
+		LinkedGroups_MarkGroupChanged( m_node );
 	}
 	void erase( scene::Node& child ) override {
 		m_instances.erase( child );
+		LinkedGroups_MarkGroupChanged( m_node );
 	}
 
 	scene::Instance* create( const scene::Path& path, scene::Instance* parent ) override {

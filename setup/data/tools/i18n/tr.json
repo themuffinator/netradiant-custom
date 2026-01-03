@@ -1,0 +1,31 @@
+{
+  "&Build": "&Derle",
+  "&Curve": "&E\u011fri",
+  "&Edit": "&D\u00fczen",
+  "&File": "&Dosya",
+  "&Grid": "&Izgara",
+  "&Help": "&Yard\u0131m",
+  "&Plugins": "&Eklentiler",
+  "Auto (System)": "Otomatik (Sistem)",
+  "Brush": "F\u0131r\u00e7a",
+  "Display Preferences": "G\u00f6r\u00fcnt\u00fc Tercihleri",
+  "E&ntity": "&Varl\u0131k",
+  "E&xit": "&\u00c7\u0131k\u0131\u015f",
+  "Engine Path Configuration": "Motor Yolu Yap\u0131land\u0131rmas\u0131",
+  "Game Settings": "Oyun Ayarlar\u0131",
+  "General Settings": "Genel Ayarlar",
+  "Global Preferences": "Genel Tercihler",
+  "Interface Preferences": "Aray\u00fcz Tercihleri",
+  "Language": "Dil",
+  "M&isc": "&Di\u011fer",
+  "M&odify": "&De\u011fi\u015ftir",
+  "Path settings": "Yol Ayarlar\u0131",
+  "Path Settings": "Yol Ayarlar\u0131",
+  "Pre&ferences...": "&Tercihler...",
+  "VibeRadiant Preferences": "VibeRadiant Tercihleri",
+  "Vie&w": "&G\u00f6r\u00fcn\u00fcm",
+  "_meta": {
+    "code": "tr",
+    "name": "Turkish"
+  }
+}
