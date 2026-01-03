@@ -35,6 +35,7 @@
 #include "preferences.h"
 #include "gtkmisc.h"
 #include "gtkutil/menu.h"
+#include "gtkutil/i18n.h"
 #include "os/dir.h"
 #include "os/path.h"
 #include "stream/stringstream.h"
@@ -208,12 +209,12 @@ static void load_colors_theme( const char *filepath ){
 }
 
 void create_colours_menu( QMenu *menu ){
-	menu = menu->addMenu( "Theming" );
+	menu = menu->addMenu( i18n::tr( "Theming" ) );
 
 	menu->setTearOffEnabled( g_Layout_enableDetachableMenus.m_value );
 
 	{
-		QMenu* submenu = menu->addMenu( "Viewports Theme" );
+		QMenu* submenu = menu->addMenu( i18n::tr( "Viewports Theme" ) );
 
 		submenu->setTearOffEnabled( g_Layout_enableDetachableMenus.m_value );
 

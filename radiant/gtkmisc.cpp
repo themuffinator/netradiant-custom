@@ -40,6 +40,7 @@
 #include "gtkutil/dialog.h"
 #include "gtkutil/filechooser.h"
 #include "gtkutil/image.h"
+#include "gtkutil/i18n.h"
 #include "commands.h"
 #include "stream/stringstream.h"
 #include "stream/textstream.h"
@@ -119,14 +120,14 @@ void toggle_remove_accelerator( const char* name ){
 
 QAction* create_check_menu_item_with_mnemonic( QMenu* menu, const char* mnemonic, const char* commandName ){
 	auto *action = toggle_add_accelerator_( commandName );
-	action->setText( mnemonic );
+	action->setText( i18n::tr( mnemonic ) );
 	menu->addAction( action );
 	return action;
 }
 
 QAction* create_menu_item_with_mnemonic( QMenu *menu, const char *mnemonic, const char* commandName ){
 	auto *action = command_connect_accelerator_( commandName );
-	action->setText( mnemonic );
+	action->setText( i18n::tr( mnemonic ) );
 	menu->addAction( action );
 	return action;
 }
@@ -285,20 +286,21 @@ void toolbar_construct_control_menu( QMenu *menu ){
 
 // can update this on QAction::changed() signal, but it's called too often and even on setChecked(); let's only have this on construction
 static void toolbar_action_set_tooltip( QAction *action, const char *description ){
+	const QString translated = i18n::tr( description );
 	if( QKeySequence_valid( action->shortcut() ) ){
-		QString out;
-		const char *p = description;
-		for( ; *p && *p != '\n'; ++p ) // append 1st line
-			out += *p;
+		const int newline = translated.indexOf( '\n' );
+		const QString firstLine = ( newline >= 0 ) ? translated.left( newline ) : translated;
+		QString out = firstLine;
 		out += " (";
-		out += action->shortcut().toString();  // append shortcut
+		out += action->shortcut().toString();
 		out += ")";
-		for( ; *p; ++p )  // append the rest
-			out += *p;
+		if ( newline >= 0 ) {
+			out += translated.mid( newline );
+		}
 		action->setToolTip( out );
 	}
 	else{
-		action->setToolTip( description );
+		action->setToolTip( translated );
 	}
 }
 

@@ -5,15 +5,15 @@
         <key>CFBundleDevelopmentRegion</key>
         <string>English</string>
         <key>CFBundleDisplayName</key>
-        <string>NetRadiant</string>
+        <string>VibeRadiant</string>
         <key>CFBundleExecutable</key>
         <string>radiant</string>
         <key>CFBundleIconFile</key>
         <string>radiant.icns</string>
         <key>CFBundleIdentifier</key>
-        <string>org.xonotic.netradiant</string>
+        <string>org.viberadiant</string>
         <key>CFBundleName</key>
-        <string>NetRadiant</string>
+        <string>VibeRadiant</string>
         <key>CFBundlePackageType</key>
         <string>APPL</string>
         <key>CFBundleShortVersionString</key>

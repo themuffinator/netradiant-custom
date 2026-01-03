@@ -36,6 +36,8 @@
 
 #include "light.h"
 
+#include "linkedgroups.h"
+
 #include <cstdlib>
 
 #include "cullable.h"
@@ -1072,6 +1074,7 @@ class Light :
 {
 	EntityKeyValues m_entity;
 	KeyObserverMap m_keyObservers;
+	LinkedGroupsEntityObserver m_linkedGroupObserver;
 	TraversableNodeSet m_traverse;
 	IdentityTransform m_transform;
 
@@ -1306,6 +1309,7 @@ public:
 
 	Light( EntityClass* eclass, scene::Node& node, const Callback<void()>& transformChanged, const Callback<void()>& boundsChanged, const Callback<void()>& evaluateTransform ) :
 		m_entity( eclass ),
+		m_linkedGroupObserver( node ),
 		m_originKey( OriginChangedCaller( *this ) ),
 		m_rotationKey( RotationChangedCaller( *this ) ),
 		m_colour( FreeCaller<void(), SceneChangeNotify>() ),
@@ -1333,6 +1337,7 @@ public:
 	}
 	Light( const Light& other, scene::Node& node, const Callback<void()>& transformChanged, const Callback<void()>& boundsChanged, const Callback<void()>& evaluateTransform ) :
 		m_entity( other.m_entity ),
+		m_linkedGroupObserver( node ),
 		m_originKey( OriginChangedCaller( *this ) ),
 		m_rotationKey( RotationChangedCaller( *this ) ),
 		m_colour( FreeCaller<void(), SceneChangeNotify>() ),
@@ -1371,6 +1376,7 @@ public:
 				m_traverse.instanceAttach( path_find_mapfile( path.begin(), path.end() ) );
 			}
 			m_entity.attach( m_keyObservers );
+			m_linkedGroupObserver.attach( m_entity );
 
 			if ( g_lightType == LIGHTTYPE_DOOM3 ) {
 				m_funcStaticOrigin.enable();
@@ -1383,6 +1389,7 @@ public:
 				m_funcStaticOrigin.disable();
 			}
 
+			m_linkedGroupObserver.detach( m_entity );
 			m_entity.detach( m_keyObservers );
 			if ( g_lightType == LIGHTTYPE_DOOM3 ) {
 				m_traverse.instanceDetach( path_find_mapfile( path.begin(), path.end() ) );

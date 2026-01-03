@@ -26,13 +26,25 @@
 #include "ientity.h"
 #include "iselection.h"
 #include "iundo.h"
+#include "linkedgroups.h"
 
+#include <algorithm>
+#include <cerrno>
+#include <cctype>
+#include <cstring>
+#include <limits>
+#include <regex>
+#include <string>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "stream/stringstream.h"
 #include "signal/isignal.h"
 #include "shaderlib.h"
 #include "scenelib.h"
+#include "string/string.h"
+#include "os/path.h"
 
 #include "gtkutil/idledraw.h"
 #include "gtkutil/dialog.h"
@@ -693,35 +705,1265 @@ void Select_RotateTexture( float amt ){
 	Scene_BrushRotateTexdef_Component_Selected( GlobalSceneGraph(), amt );
 }
 
+namespace
+{
+
+struct TextureFindReplaceState
+{
+	TextureFindMatchMode matchMode = TextureFindMatchMode::Exact;
+	TextureReplaceMode replaceMode = TextureReplaceMode::ReplaceFull;
+	TextureFindScope scope = TextureFindScope::All;
+	TextureShaderFilter shaderFilter = TextureShaderFilter::Any;
+	TextureUsageFilter usageFilter = TextureUsageFilter::Any;
+	bool caseSensitive = false;
+	bool matchNameOnly = false;
+	bool autoPrefix = true;
+	bool visibleOnly = true;
+	bool includeBrushes = true;
+	bool includePatches = true;
+	int minWidth = 0;
+	int maxWidth = 0;
+	int minHeight = 0;
+	int maxHeight = 0;
+	unsigned int surfaceFlagsRequire = 0;
+	unsigned int surfaceFlagsExclude = 0;
+	unsigned int contentFlagsRequire = 0;
+	unsigned int contentFlagsExclude = 0;
+	bool useSurfaceFlagsRequire = false;
+	bool useSurfaceFlagsExclude = false;
+	bool useContentFlagsRequire = false;
+	bool useContentFlagsExclude = false;
+	bool useShaderFilters = false;
+	std::string findPattern;
+	std::string replaceRaw;
+	std::string replaceFull;
+	std::vector<std::string> includeFilters;
+	std::vector<std::string> excludeFilters;
+	std::regex regex;
+	bool regexReady = false;
+	bool doReplace = false;
+};
+
+struct FindReplacePatternState
+{
+	TextureFindMatchMode matchMode = TextureFindMatchMode::Exact;
+	TextureReplaceMode replaceMode = TextureReplaceMode::ReplaceFull;
+	bool caseSensitive = false;
+	std::string findPattern;
+	std::string replaceRaw;
+	std::regex regex;
+	bool regexReady = false;
+};
+
+struct EntityFindReplaceState
+{
+	FindReplacePatternState pattern;
+	EntityFindScope scope = EntityFindScope::All;
+	bool visibleOnly = true;
+	bool searchKeys = false;
+	bool searchValues = true;
+	bool replaceKeys = false;
+	bool replaceValues = true;
+	bool includeWorldspawn = false;
+	bool doReplace = false;
+	std::vector<std::string> keyFilters;
+	std::vector<std::string> classFilters;
+};
+
+struct ShaderParts
+{
+	std::string full;
+	std::string prefix;
+	std::string leaf;
+};
+
+struct MatchResult
+{
+	bool matched = false;
+	bool replacementValid = false;
+	std::string replacement;
+};
+
+struct ShaderInfo
+{
+	bool isDefault = false;
+	bool inUse = false;
+	unsigned int surfaceFlags = 0;
+	unsigned int contentFlags = 0;
+	int width = 0;
+	int height = 0;
+};
+
+class ShaderInfoCache
+{
+	std::unordered_map<std::string, ShaderInfo> m_cache;
+public:
+	const ShaderInfo& get( const char* shaderName ){
+		const std::string key = shaderName ? shaderName : "";
+		auto [it, inserted] = m_cache.emplace( key, ShaderInfo{} );
+		if ( !inserted ) {
+			return it->second;
+		}
+		ShaderInfo& info = it->second;
+		if ( shaderName != nullptr && *shaderName != '\0' ) {
+			if ( IShader* shader = QERApp_Shader_ForName( shaderName ) ) {
+				info.isDefault = shader->IsDefault();
+				info.inUse = shader->IsInUse();
+				if ( qtexture_t* texture = shader->getTexture() ) {
+					info.surfaceFlags = texture->surfaceFlags;
+					info.contentFlags = texture->contentFlags;
+					info.width = static_cast<int>( texture->width );
+					info.height = static_cast<int>( texture->height );
+				}
+			}
+		}
+		return info;
+	}
+};
+
+static std::string TrimAscii( const std::string& text ){
+	std::size_t start = 0;
+	while ( start < text.size() && std::isspace( static_cast<unsigned char>( text[start] ) ) ) {
+		++start;
+	}
+	std::size_t end = text.size();
+	while ( end > start && std::isspace( static_cast<unsigned char>( text[end - 1] ) ) ) {
+		--end;
+	}
+	return text.substr( start, end - start );
+}
+
+static std::string ToLowerCopy( const std::string& text ){
+	std::string out = text;
+	std::transform( out.begin(), out.end(), out.begin(), []( unsigned char ch ){
+		return static_cast<char>( std::tolower( ch ) );
+	} );
+	return out;
+}
+
+static std::string CleanShaderPath( const std::string& text ){
+	if ( text.empty() ) {
+		return text;
+	}
+	const auto cleaned = StringStream<256>( PathCleaned( text.c_str() ) );
+	return std::string( cleaned.c_str() );
+}
+
+static std::string NormalizeFullPath( const std::string& text, bool autoPrefix ){
+	std::string trimmed = TrimAscii( text );
+	if ( trimmed.empty() ) {
+		return trimmed;
+	}
+	if ( autoPrefix && !shader_equal_prefix( trimmed.c_str(), GlobalTexturePrefix_get() ) ) {
+		return std::string( GlobalTexturePrefix_get() ) + trimmed;
+	}
+	return trimmed;
+}
+
+static ShaderParts SplitShaderParts( const char* shader ){
+	ShaderParts parts;
+	if ( shader == nullptr ) {
+		return parts;
+	}
+	parts.full = shader;
+	const std::size_t slash = parts.full.find_last_of( '/' );
+	if ( slash == std::string::npos ) {
+		parts.leaf = parts.full;
+		return parts;
+	}
+	parts.prefix = parts.full.substr( 0, slash + 1 );
+	parts.leaf = parts.full.substr( slash + 1 );
+	return parts;
+}
+
+static bool WildcardMatchInternal( const char* pattern, const char* text ){
+	const char* star = nullptr;
+	const char* starText = nullptr;
+
+	while ( *text ) {
+		if ( *pattern == '*' ) {
+			star = pattern++;
+			starText = text;
+			continue;
+		}
+		if ( *pattern == '?' || *pattern == *text ) {
+			++pattern;
+			++text;
+			continue;
+		}
+		if ( star ) {
+			pattern = star + 1;
+			text = ++starText;
+			continue;
+		}
+		return false;
+	}
+
+	while ( *pattern == '*' ) {
+		++pattern;
+	}
+	return *pattern == '\0';
+}
+
+static bool WildcardMatch( const std::string& pattern, const std::string& text, bool caseSensitive ){
+	if ( caseSensitive ) {
+		return WildcardMatchInternal( pattern.c_str(), text.c_str() );
+	}
+	const std::string foldedPattern = ToLowerCopy( pattern );
+	const std::string foldedText = ToLowerCopy( text );
+	return WildcardMatchInternal( foldedPattern.c_str(), foldedText.c_str() );
+}
+
+static bool WildcardMatchCaptureRecursive( const std::string& patternCmp, const std::string& textCmp, const std::string& textOriginal,
+                                           std::size_t pIndex, std::size_t tIndex, std::vector<std::string>& captures, std::size_t captureIndex ){
+	while ( pIndex < patternCmp.size() ) {
+		const char pch = patternCmp[pIndex];
+		if ( pch == '*' ) {
+			if ( captureIndex >= captures.size() ) {
+				return false;
+			}
+			for ( std::size_t i = tIndex; i <= textCmp.size(); ++i ) {
+				captures[captureIndex] = textOriginal.substr( tIndex, i - tIndex );
+				if ( WildcardMatchCaptureRecursive( patternCmp, textCmp, textOriginal, pIndex + 1, i, captures, captureIndex + 1 ) ) {
+					return true;
+				}
+			}
+			return false;
+		}
+		if ( tIndex >= textCmp.size() ) {
+			return false;
+		}
+		if ( pch == '?' || pch == textCmp[tIndex] ) {
+			++pIndex;
+			++tIndex;
+			continue;
+		}
+		return false;
+	}
+	return tIndex == textCmp.size();
+}
+
+static bool WildcardMatchCapture( const std::string& pattern, const std::string& text, bool caseSensitive, std::vector<std::string>& captures ){
+	const std::size_t starCount = std::count( pattern.begin(), pattern.end(), '*' );
+	captures.assign( starCount, std::string() );
+	const std::string patternCmp = caseSensitive ? pattern : ToLowerCopy( pattern );
+	const std::string textCmp = caseSensitive ? text : ToLowerCopy( text );
+	return WildcardMatchCaptureRecursive( patternCmp, textCmp, text, 0, 0, captures, 0 );
+}
+
+static std::string ExpandWildcardReplacement( const std::string& replace, const std::vector<std::string>& captures ){
+	std::string out;
+	out.reserve( replace.size() );
+	for ( std::size_t i = 0; i < replace.size(); ++i ) {
+		const char ch = replace[i];
+		if ( ch == '$' && i + 1 < replace.size() ) {
+			const char next = replace[i + 1];
+			if ( next == '$' ) {
+				out.push_back( '$' );
+				++i;
+				continue;
+			}
+			if ( next >= '1' && next <= '9' ) {
+				const std::size_t index = static_cast<std::size_t>( next - '1' );
+				if ( index < captures.size() ) {
+					out.append( captures[index] );
+				}
+				++i;
+				continue;
+			}
+		}
+		out.push_back( ch );
+	}
+	return out;
+}
+
+static std::vector<std::string> SplitFilterPatterns( const std::string& text ){
+	std::vector<std::string> patterns;
+	std::string current;
+	for ( const char ch : text ) {
+		if ( ch == ',' || ch == ';' || ch == '\n' || ch == '\r' ) {
+			const std::string trimmed = TrimAscii( current );
+			if ( !trimmed.empty() ) {
+				patterns.push_back( CleanShaderPath( trimmed ) );
+			}
+			current.clear();
+			continue;
+		}
+		current.push_back( ch );
+	}
+	const std::string trimmed = TrimAscii( current );
+	if ( !trimmed.empty() ) {
+		patterns.push_back( CleanShaderPath( trimmed ) );
+	}
+	return patterns;
+}
+
+static std::vector<std::string> SplitListPatterns( const std::string& text ){
+	std::vector<std::string> patterns;
+	std::string current;
+	for ( const char ch : text ) {
+		if ( ch == ',' || ch == ';' || ch == '\n' || ch == '\r' ) {
+			const std::string trimmed = TrimAscii( current );
+			if ( !trimmed.empty() ) {
+				patterns.push_back( trimmed );
+			}
+			current.clear();
+			continue;
+		}
+		current.push_back( ch );
+	}
+	const std::string trimmed = TrimAscii( current );
+	if ( !trimmed.empty() ) {
+		patterns.push_back( trimmed );
+	}
+	return patterns;
+}
+
+static bool ParseOptionalMask( const std::string& text, unsigned int& mask, bool& enabled, std::string& error, const char* label ){
+	const std::string trimmed = TrimAscii( text );
+	if ( trimmed.empty() ) {
+		enabled = false;
+		mask = 0;
+		return true;
+	}
+	errno = 0;
+	char* end = nullptr;
+	const unsigned long value = std::strtoul( trimmed.c_str(), &end, 0 );
+	if ( errno != 0 || end == trimmed.c_str() ) {
+		error = StringStream<128>( "Invalid ", label, " mask" ).c_str();
+		return false;
+	}
+	while ( *end != '\0' && std::isspace( static_cast<unsigned char>( *end ) ) ) {
+		++end;
+	}
+	if ( *end != '\0' ) {
+		error = StringStream<128>( "Invalid ", label, " mask" ).c_str();
+		return false;
+	}
+	if ( value > std::numeric_limits<unsigned int>::max() ) {
+		error = StringStream<128>( label, " mask is too large" ).c_str();
+		return false;
+	}
+	mask = static_cast<unsigned int>( value );
+	enabled = true;
+	return true;
+}
+
+static bool MatchesAnyFilter( const std::vector<std::string>& filters, const std::string& value, bool caseSensitive ){
+	return std::ranges::any_of( filters, [&]( const std::string& filter ){
+		return WildcardMatch( filter, value, caseSensitive );
+	} );
+}
+
+static bool PassesFilters( const TextureFindReplaceState& state, const std::string& shader ){
+	if ( !state.includeFilters.empty() && !MatchesAnyFilter( state.includeFilters, shader, state.caseSensitive ) ) {
+		return false;
+	}
+	if ( !state.excludeFilters.empty() && MatchesAnyFilter( state.excludeFilters, shader, state.caseSensitive ) ) {
+		return false;
+	}
+	return true;
+}
+
+static bool PassesShaderFilters( const TextureFindReplaceState& state, const ShaderInfo& info ){
+	if ( state.shaderFilter == TextureShaderFilter::DefaultOnly && !info.isDefault ) {
+		return false;
+	}
+	if ( state.shaderFilter == TextureShaderFilter::RealOnly && info.isDefault ) {
+		return false;
+	}
+	if ( state.usageFilter == TextureUsageFilter::InUseOnly && !info.inUse ) {
+		return false;
+	}
+	if ( state.usageFilter == TextureUsageFilter::NotInUse && info.inUse ) {
+		return false;
+	}
+	if ( ( state.minWidth > 0 || state.maxWidth > 0 ) && info.width <= 0 ) {
+		return false;
+	}
+	if ( ( state.minHeight > 0 || state.maxHeight > 0 ) && info.height <= 0 ) {
+		return false;
+	}
+	if ( state.minWidth > 0 && info.width < state.minWidth ) {
+		return false;
+	}
+	if ( state.maxWidth > 0 && info.width > state.maxWidth ) {
+		return false;
+	}
+	if ( state.minHeight > 0 && info.height < state.minHeight ) {
+		return false;
+	}
+	if ( state.maxHeight > 0 && info.height > state.maxHeight ) {
+		return false;
+	}
+	if ( state.useSurfaceFlagsRequire && ( info.surfaceFlags & state.surfaceFlagsRequire ) != state.surfaceFlagsRequire ) {
+		return false;
+	}
+	if ( state.useSurfaceFlagsExclude && ( info.surfaceFlags & state.surfaceFlagsExclude ) != 0 ) {
+		return false;
+	}
+	if ( state.useContentFlagsRequire && ( info.contentFlags & state.contentFlagsRequire ) != state.contentFlagsRequire ) {
+		return false;
+	}
+	if ( state.useContentFlagsExclude && ( info.contentFlags & state.contentFlagsExclude ) != 0 ) {
+		return false;
+	}
+	return true;
+}
+
+static bool BuildFindReplaceState( const TextureFindReplaceOptions& options, TextureFindReplaceState& state, std::string& error ){
+	state.matchMode = options.matchMode;
+	state.replaceMode = options.replaceMode;
+	state.scope = options.scope;
+	state.shaderFilter = options.shaderFilter;
+	state.usageFilter = options.usageFilter;
+	state.caseSensitive = options.caseSensitive;
+	state.matchNameOnly = options.matchNameOnly;
+	state.autoPrefix = options.autoPrefix;
+	state.visibleOnly = options.visibleOnly;
+	state.includeBrushes = options.includeBrushes;
+	state.includePatches = options.includePatches;
+	state.minWidth = std::max( 0, options.minWidth );
+	state.maxWidth = std::max( 0, options.maxWidth );
+	state.minHeight = std::max( 0, options.minHeight );
+	state.maxHeight = std::max( 0, options.maxHeight );
+	if ( state.minWidth > 0 && state.maxWidth > 0 && state.minWidth > state.maxWidth ) {
+		error = "Invalid width range";
+		return false;
+	}
+	if ( state.minHeight > 0 && state.maxHeight > 0 && state.minHeight > state.maxHeight ) {
+		error = "Invalid height range";
+		return false;
+	}
+
+	state.findPattern = TrimAscii( options.find );
+	if ( state.matchMode != TextureFindMatchMode::Regex ) {
+		state.findPattern = CleanShaderPath( state.findPattern );
+	}
+	if ( state.findPattern.empty() ) {
+		error = "Find pattern is empty";
+		return false;
+	}
+	if ( state.matchNameOnly ) {
+		state.findPattern = SplitShaderParts( state.findPattern.c_str() ).leaf;
+		if ( state.findPattern.empty() ) {
+			error = "Find pattern is empty after trimming the path";
+			return false;
+		}
+	}
+	else {
+		state.findPattern = NormalizeFullPath( state.findPattern, state.autoPrefix );
+	}
+
+	state.replaceRaw = TrimAscii( options.replace );
+	state.doReplace = !state.replaceRaw.empty();
+	if ( state.doReplace ) {
+		state.replaceFull = NormalizeFullPath( state.replaceRaw, state.autoPrefix );
+		state.replaceFull = CleanShaderPath( state.replaceFull );
+	}
+
+	state.includeFilters = SplitFilterPatterns( options.includeFilter );
+	state.excludeFilters = SplitFilterPatterns( options.excludeFilter );
+	if ( !ParseOptionalMask( options.surfaceFlagsRequire, state.surfaceFlagsRequire, state.useSurfaceFlagsRequire, error, "surface flags require" ) ) {
+		return false;
+	}
+	if ( !ParseOptionalMask( options.surfaceFlagsExclude, state.surfaceFlagsExclude, state.useSurfaceFlagsExclude, error, "surface flags exclude" ) ) {
+		return false;
+	}
+	if ( !ParseOptionalMask( options.contentFlagsRequire, state.contentFlagsRequire, state.useContentFlagsRequire, error, "content flags require" ) ) {
+		return false;
+	}
+	if ( !ParseOptionalMask( options.contentFlagsExclude, state.contentFlagsExclude, state.useContentFlagsExclude, error, "content flags exclude" ) ) {
+		return false;
+	}
+	state.useShaderFilters = ( state.shaderFilter != TextureShaderFilter::Any )
+		|| ( state.usageFilter != TextureUsageFilter::Any )
+		|| ( state.minWidth > 0 || state.maxWidth > 0 || state.minHeight > 0 || state.maxHeight > 0 )
+		|| state.useSurfaceFlagsRequire || state.useSurfaceFlagsExclude || state.useContentFlagsRequire || state.useContentFlagsExclude;
+
+	if ( state.matchMode == TextureFindMatchMode::Regex ) {
+#if defined( __cpp_exceptions )
+		try
+		{
+			const std::regex_constants::syntax_option_type regexOptions = state.caseSensitive
+				? std::regex_constants::ECMAScript
+				: ( std::regex_constants::ECMAScript | std::regex_constants::icase );
+			state.regex = std::regex( state.findPattern, regexOptions );
+			state.regexReady = true;
+		}
+		catch ( const std::regex_error& ) {
+			error = "Invalid regex pattern";
+			return false;
+		}
+#else
+		error = "Regex matching requires exceptions";
+		return false;
+#endif
+	}
+
+	if ( state.matchMode == TextureFindMatchMode::Exact && !state.matchNameOnly ) {
+		if ( !texdef_name_valid( state.findPattern.c_str() ) ) {
+			error = StringStream<256>( "Invalid texture name: ", state.findPattern.c_str() ).c_str();
+			return false;
+		}
+	}
+
+	return true;
+}
+
+static bool BuildFindReplacePatternState( const std::string& find, const std::string& replace, TextureFindMatchMode matchMode,
+                                          TextureReplaceMode replaceMode, bool caseSensitive, FindReplacePatternState& state, std::string& error ){
+	state.matchMode = matchMode;
+	state.replaceMode = replaceMode;
+	state.caseSensitive = caseSensitive;
+	state.findPattern = TrimAscii( find );
+	if ( state.findPattern.empty() ) {
+		error = "Find pattern is empty";
+		return false;
+	}
+	state.replaceRaw = TrimAscii( replace );
+
+	if ( state.matchMode == TextureFindMatchMode::Regex ) {
+#if defined( __cpp_exceptions )
+		try
+		{
+			const std::regex_constants::syntax_option_type regexOptions = state.caseSensitive
+				? std::regex_constants::ECMAScript
+				: ( std::regex_constants::ECMAScript | std::regex_constants::icase );
+			state.regex = std::regex( state.findPattern, regexOptions );
+			state.regexReady = true;
+		}
+		catch ( const std::regex_error& ) {
+			error = "Invalid regex pattern";
+			return false;
+		}
+#else
+		error = "Regex matching requires exceptions";
+		return false;
+#endif
+	}
+
+	return true;
+}
+
+static bool BuildEntityFindReplaceState( const EntityFindReplaceOptions& options, EntityFindReplaceState& state, std::string& error ){
+	if ( !BuildFindReplacePatternState( options.find, options.replace, options.matchMode, options.replaceMode, options.caseSensitive, state.pattern, error ) ) {
+		return false;
+	}
+	state.scope = options.scope;
+	state.visibleOnly = options.visibleOnly;
+	state.searchKeys = options.searchKeys;
+	state.searchValues = options.searchValues;
+	state.replaceKeys = options.replaceKeys && state.searchKeys;
+	state.replaceValues = options.replaceValues && state.searchValues;
+	state.includeWorldspawn = options.includeWorldspawn;
+	state.doReplace = !state.pattern.replaceRaw.empty();
+	state.keyFilters = SplitListPatterns( options.keyFilter );
+	state.classFilters = SplitListPatterns( options.classFilter );
+
+	if ( !state.searchKeys && !state.searchValues ) {
+		error = "No search fields enabled";
+		return false;
+	}
+	if ( state.doReplace && !state.replaceKeys && !state.replaceValues ) {
+		error = "No replacement fields enabled";
+		return false;
+	}
+	return true;
+}
+
+static bool EntityKeyNameValid( const std::string& key ){
+	if ( key.empty() ) {
+		return false;
+	}
+	return key.find_first_of( " \n\r\t\v\"" ) == std::string::npos;
+}
+
+static bool MatchTarget( const TextureFindReplaceState& state, const std::string& target ){
+	switch ( state.matchMode )
+	{
+	case TextureFindMatchMode::Exact:
+		return state.caseSensitive
+			? string_equal( target.c_str(), state.findPattern.c_str() )
+			: string_equal_nocase( target.c_str(), state.findPattern.c_str() );
+	case TextureFindMatchMode::Contains:
+		return state.caseSensitive
+			? std::strstr( target.c_str(), state.findPattern.c_str() ) != nullptr
+			: string_in_string_nocase( target.c_str(), state.findPattern.c_str() ) != nullptr;
+	case TextureFindMatchMode::StartsWith:
+		return state.caseSensitive
+			? string_equal_prefix( target.c_str(), state.findPattern.c_str() )
+			: string_equal_prefix_nocase( target.c_str(), state.findPattern.c_str() );
+	case TextureFindMatchMode::EndsWith:
+		return state.caseSensitive
+			? string_equal_suffix( target.c_str(), state.findPattern.c_str() )
+			: string_equal_suffix_nocase( target.c_str(), state.findPattern.c_str() );
+	case TextureFindMatchMode::Wildcard:
+		return WildcardMatch( state.findPattern, target, state.caseSensitive );
+	case TextureFindMatchMode::Regex:
+		return state.regexReady && std::regex_search( target, state.regex );
+	}
+	return false;
+}
+
+static bool MatchTarget( const FindReplacePatternState& state, const std::string& target ){
+	switch ( state.matchMode )
+	{
+	case TextureFindMatchMode::Exact:
+		return state.caseSensitive
+			? string_equal( target.c_str(), state.findPattern.c_str() )
+			: string_equal_nocase( target.c_str(), state.findPattern.c_str() );
+	case TextureFindMatchMode::Contains:
+		return state.caseSensitive
+			? std::strstr( target.c_str(), state.findPattern.c_str() ) != nullptr
+			: string_in_string_nocase( target.c_str(), state.findPattern.c_str() ) != nullptr;
+	case TextureFindMatchMode::StartsWith:
+		return state.caseSensitive
+			? string_equal_prefix( target.c_str(), state.findPattern.c_str() )
+			: string_equal_prefix_nocase( target.c_str(), state.findPattern.c_str() );
+	case TextureFindMatchMode::EndsWith:
+		return state.caseSensitive
+			? string_equal_suffix( target.c_str(), state.findPattern.c_str() )
+			: string_equal_suffix_nocase( target.c_str(), state.findPattern.c_str() );
+	case TextureFindMatchMode::Wildcard:
+		return WildcardMatch( state.findPattern, target, state.caseSensitive );
+	case TextureFindMatchMode::Regex:
+		return state.regexReady && std::regex_search( target, state.regex );
+	}
+	return false;
+}
+
+static std::string ReplaceAllCaseSensitive( const std::string& text, const std::string& find, const std::string& replace ){
+	if ( find.empty() ) {
+		return text;
+	}
+	std::string out;
+	std::size_t pos = 0;
+	while ( true ) {
+		const std::size_t match = text.find( find, pos );
+		if ( match == std::string::npos ) {
+			out.append( text, pos, std::string::npos );
+			break;
+		}
+		out.append( text, pos, match - pos );
+		out.append( replace );
+		pos = match + find.size();
+	}
+	return out;
+}
+
+static std::string ReplaceAllCaseInsensitive( const std::string& text, const std::string& find, const std::string& replace ){
+	if ( find.empty() ) {
+		return text;
+	}
+	const std::string foldedText = ToLowerCopy( text );
+	const std::string foldedFind = ToLowerCopy( find );
+	std::string out;
+	std::size_t pos = 0;
+	while ( true ) {
+		const std::size_t match = foldedText.find( foldedFind, pos );
+		if ( match == std::string::npos ) {
+			out.append( text, pos, std::string::npos );
+			break;
+		}
+		out.append( text, pos, match - pos );
+		out.append( replace );
+		pos = match + foldedFind.size();
+	}
+	return out;
+}
+
+static bool BuildReplacedTarget( const TextureFindReplaceState& state, const std::string& target, std::string& out ){
+	switch ( state.matchMode )
+	{
+	case TextureFindMatchMode::Exact:
+		out = state.replaceRaw;
+		return true;
+	case TextureFindMatchMode::Contains:
+		out = state.caseSensitive
+			? ReplaceAllCaseSensitive( target, state.findPattern, state.replaceRaw )
+			: ReplaceAllCaseInsensitive( target, state.findPattern, state.replaceRaw );
+		return true;
+	case TextureFindMatchMode::StartsWith:
+		out = state.replaceRaw + target.substr( state.findPattern.size() );
+		return true;
+	case TextureFindMatchMode::EndsWith:
+		out = target.substr( 0, target.size() - state.findPattern.size() ) + state.replaceRaw;
+		return true;
+	case TextureFindMatchMode::Wildcard:
+		{
+			std::vector<std::string> captures;
+			if ( !WildcardMatchCapture( state.findPattern, target, state.caseSensitive, captures ) ) {
+				return false;
+			}
+			out = ExpandWildcardReplacement( state.replaceRaw, captures );
+		}
+		return true;
+	case TextureFindMatchMode::Regex:
+		if ( !state.regexReady ) {
+			return false;
+		}
+		out = std::regex_replace( target, state.regex, state.replaceRaw );
+		return true;
+	}
+	return false;
+}
+
+static bool BuildReplacedTarget( const FindReplacePatternState& state, const std::string& target, std::string& out ){
+	switch ( state.matchMode )
+	{
+	case TextureFindMatchMode::Exact:
+		out = state.replaceRaw;
+		return true;
+	case TextureFindMatchMode::Contains:
+		out = state.caseSensitive
+			? ReplaceAllCaseSensitive( target, state.findPattern, state.replaceRaw )
+			: ReplaceAllCaseInsensitive( target, state.findPattern, state.replaceRaw );
+		return true;
+	case TextureFindMatchMode::StartsWith:
+		out = state.replaceRaw + target.substr( state.findPattern.size() );
+		return true;
+	case TextureFindMatchMode::EndsWith:
+		out = target.substr( 0, target.size() - state.findPattern.size() ) + state.replaceRaw;
+		return true;
+	case TextureFindMatchMode::Wildcard:
+		{
+			std::vector<std::string> captures;
+			if ( !WildcardMatchCapture( state.findPattern, target, state.caseSensitive, captures ) ) {
+				return false;
+			}
+			out = ExpandWildcardReplacement( state.replaceRaw, captures );
+		}
+		return true;
+	case TextureFindMatchMode::Regex:
+		if ( !state.regexReady ) {
+			return false;
+		}
+		out = std::regex_replace( target, state.regex, state.replaceRaw );
+		return true;
+	}
+	return false;
+}
+
+static MatchResult MatchShader( const TextureFindReplaceState& state, const char* shader, bool wantReplacement, ShaderInfoCache& shaderCache ){
+	MatchResult result;
+	const ShaderParts parts = SplitShaderParts( shader );
+	if ( parts.full.empty() ) {
+		return result;
+	}
+	if ( !PassesFilters( state, parts.full ) ) {
+		return result;
+	}
+	if ( state.useShaderFilters ) {
+		const ShaderInfo& info = shaderCache.get( parts.full.c_str() );
+		if ( !PassesShaderFilters( state, info ) ) {
+			return result;
+		}
+	}
+	const std::string& target = state.matchNameOnly ? parts.leaf : parts.full;
+	if ( !MatchTarget( state, target ) ) {
+		return result;
+	}
+	result.matched = true;
+	if ( !wantReplacement ) {
+		return result;
+	}
+
+	std::string replacement;
+	if ( state.replaceMode == TextureReplaceMode::ReplaceFull ) {
+		const bool replaceHasPath = state.replaceRaw.find( '/' ) != std::string::npos
+			|| state.replaceRaw.find( '\\' ) != std::string::npos;
+		if ( state.matchNameOnly && !replaceHasPath ) {
+			replacement = parts.prefix + state.replaceRaw;
+		}
+		else {
+			replacement = state.replaceFull;
+		}
+	}
+	else {
+		std::string replacedTarget;
+		if ( !BuildReplacedTarget( state, target, replacedTarget ) ) {
+			return result;
+		}
+		replacement = state.matchNameOnly ? ( parts.prefix + replacedTarget ) : replacedTarget;
+	}
+
+	replacement = CleanShaderPath( replacement );
+	if ( !texdef_name_valid( replacement.c_str() ) ) {
+		globalWarningStream() << "FindReplaceTextures: invalid replacement texture: " << SingleQuoted( replacement.c_str() ) << '\n';
+		return result;
+	}
+
+	result.replacementValid = true;
+	result.replacement = replacement;
+	return result;
+}
+
+template<typename Functor>
+inline const Functor& Scene_ForEachVisibleBrush_ForEachFace( scene::Graph& graph, const Functor& functor ){
+	Scene_forEachVisibleBrush( graph, BrushForEachFace( FaceInstanceVisitFace<Functor>( functor ) ) );
+	return functor;
+}
+
+template<typename Functor>
+inline const Functor& Scene_ForEachVisibleBrush_ForEachFaceInstance( scene::Graph& graph, const Functor& functor ){
+	Scene_forEachVisibleBrush( graph, BrushForEachFace( FaceInstanceVisitAll<Functor>( functor ) ) );
+	return functor;
+}
+
+template<typename Functor>
+inline const Functor& Scene_ForEachVisibleSelectedBrush_ForEachFace( const Functor& functor ){
+	Scene_forEachVisibleSelectedBrush( BrushForEachFace( FaceInstanceVisitFace<Functor>( functor ) ) );
+	return functor;
+}
+
+template<typename Functor>
+inline const Functor& Scene_ForEachVisibleSelectedBrush_ForEachFaceInstance( const Functor& functor ){
+	Scene_forEachVisibleSelectedBrush( BrushForEachFace( FaceInstanceVisitAll<Functor>( functor ) ) );
+	return functor;
+}
+
+template<typename Functor>
+class PatchForEachAnyWalker : public scene::Graph::Walker
+{
+	const Functor& m_functor;
+public:
+	PatchForEachAnyWalker( const Functor& functor ) : m_functor( functor ){
+	}
+	bool pre( const scene::Path& path, scene::Instance& instance ) const override {
+		(void)instance;
+		Patch* patch = Node_getPatch( path.top() );
+		if ( patch != nullptr ) {
+			m_functor( *patch );
+		}
+		return true;
+	}
+};
+
+template<typename Functor>
+class PatchForEachInstanceAnyWalker : public scene::Graph::Walker
+{
+	const Functor& m_functor;
+public:
+	PatchForEachInstanceAnyWalker( const Functor& functor ) : m_functor( functor ){
+	}
+	bool pre( const scene::Path& path, scene::Instance& instance ) const override {
+		(void)path;
+		PatchInstance* patch = Instance_getPatch( instance );
+		if ( patch != nullptr ) {
+			m_functor( *patch );
+		}
+		return true;
+	}
+};
+
+}
+
 // TTimo modified to handle shader architecture:
 // expects shader names at input, comparison relies on shader names .. texture names no longer relevant
-void FindReplaceTextures( const char* pFind, const char* pReplace, bool bSelected ){
-	if ( !texdef_name_valid( pFind ) ) {
-		globalErrorStream() << "FindReplaceTextures: invalid texture name: " << SingleQuoted( pFind ) << ", aborted\n";
+void FindReplaceTextures( const TextureFindReplaceOptions& options ){
+	TextureFindReplaceState state;
+	std::string error;
+	if ( !BuildFindReplaceState( options, state, error ) ) {
+		globalErrorStream() << "FindReplaceTextures: " << error.c_str() << ", aborted\n";
 		return;
 	}
-	if ( !texdef_name_valid( pReplace ) ) {
-		globalErrorStream() << "FindReplaceTextures: invalid texture name: " << SingleQuoted( pReplace ) << ", aborted\n";
+
+	ShaderInfoCache shaderCache;
+
+	if ( !state.includeBrushes && !state.includePatches ) {
+		globalErrorStream() << "FindReplaceTextures: no target types enabled (brushes/patches)\n";
 		return;
 	}
 
-	const auto command = StringStream<64>( "textureFindReplace -find ", pFind, " -replace ", pReplace );
-	UndoableCommand undo( command );
+	const bool doReplace = state.doReplace;
+	if ( doReplace ) {
+		const auto command = StringStream<256>( "textureFindReplace -find ", state.findPattern.c_str(), " -replace ", state.replaceRaw.c_str() );
+		UndoableCommand undo( command );
+	}
 
-	if( shader_equal( pReplace, "textures/" ) )
-		pReplace = 0; //do search
+	int matchedBrushFaces = 0;
+	int replacedBrushFaces = 0;
+	int matchedPatches = 0;
+	int replacedPatches = 0;
 
-	if ( bSelected ) {
-		if ( GlobalSelectionSystem().Mode() != SelectionSystem::eComponent ) {
-			Scene_BrushFindReplaceShader_Selected( GlobalSceneGraph(), pFind, pReplace );
-			Scene_PatchFindReplaceShader_Selected( GlobalSceneGraph(), pFind, pReplace );
+	if ( state.includeBrushes ) {
+		if ( doReplace ) {
+			struct FaceReplace
+			{
+				const TextureFindReplaceState& state;
+				ShaderInfoCache& shaderCache;
+				int* matched;
+				int* replaced;
+				void operator()( Face& face ) const {
+					const MatchResult result = MatchShader( state, face.GetShader(), true, shaderCache );
+					if ( !result.matched ) {
+						return;
+					}
+					++( *matched );
+					if ( result.replacementValid ) {
+						face.SetShader( result.replacement.c_str() );
+						++( *replaced );
+					}
+				}
+			};
+			const FaceReplace replacer{ state, shaderCache, &matchedBrushFaces, &replacedBrushFaces };
+
+			switch ( state.scope )
+			{
+			case TextureFindScope::All:
+				if ( state.visibleOnly ) {
+					Scene_ForEachVisibleBrush_ForEachFace( GlobalSceneGraph(), replacer );
+				}
+				else {
+					Scene_ForEachBrush_ForEachFace( GlobalSceneGraph(), replacer );
+				}
+				break;
+			case TextureFindScope::Selected:
+				if ( state.visibleOnly ) {
+					Scene_ForEachVisibleSelectedBrush_ForEachFace( replacer );
+				}
+				else {
+					Scene_ForEachSelectedBrush_ForEachFace( GlobalSceneGraph(), replacer );
+				}
+				break;
+			case TextureFindScope::SelectedFaces:
+				Scene_ForEachSelectedBrushFace( GlobalSceneGraph(), replacer );
+				break;
+			}
 		}
-		Scene_BrushFindReplaceShader_Component_Selected( GlobalSceneGraph(), pFind, pReplace );
+		else {
+			struct FaceSelect
+			{
+				const TextureFindReplaceState& state;
+				ShaderInfoCache& shaderCache;
+				int* matched;
+				void operator()( FaceInstance& face ) const {
+					const MatchResult result = MatchShader( state, face.getFace().GetShader(), false, shaderCache );
+					if ( !result.matched ) {
+						return;
+					}
+					face.setSelected( SelectionSystem::eFace, true );
+					++( *matched );
+				}
+			};
+			const FaceSelect selector{ state, shaderCache, &matchedBrushFaces };
+
+			switch ( state.scope )
+			{
+			case TextureFindScope::All:
+				if ( state.visibleOnly ) {
+					Scene_ForEachVisibleBrush_ForEachFaceInstance( GlobalSceneGraph(), selector );
+				}
+				else {
+					Scene_ForEachBrush_ForEachFaceInstance( GlobalSceneGraph(), selector );
+				}
+				break;
+			case TextureFindScope::Selected:
+				if ( state.visibleOnly ) {
+					Scene_ForEachVisibleSelectedBrush_ForEachFaceInstance( selector );
+				}
+				else {
+					Scene_ForEachSelectedBrush_ForEachFaceInstance( GlobalSceneGraph(), selector );
+				}
+				break;
+			case TextureFindScope::SelectedFaces:
+			{
+				struct FaceCount
+				{
+					const TextureFindReplaceState& state;
+					ShaderInfoCache& shaderCache;
+					int* matched;
+					void operator()( Face& face ) const {
+						if ( MatchShader( state, face.GetShader(), false, shaderCache ).matched ) {
+							++( *matched );
+						}
+					}
+				};
+				const FaceCount counter{ state, shaderCache, &matchedBrushFaces };
+				Scene_ForEachSelectedBrushFace( GlobalSceneGraph(), counter );
+				break;
+			}
+			}
+		}
 	}
-	else
+
+	if ( state.includePatches ) {
+		if ( doReplace ) {
+			struct PatchReplace
+			{
+				const TextureFindReplaceState& state;
+				ShaderInfoCache& shaderCache;
+				int* matched;
+				int* replaced;
+				void operator()( Patch& patch ) const {
+					const MatchResult result = MatchShader( state, patch.GetShader(), true, shaderCache );
+					if ( !result.matched ) {
+						return;
+					}
+					++( *matched );
+					if ( result.replacementValid ) {
+						patch.SetShader( result.replacement.c_str() );
+						++( *replaced );
+					}
+				}
+			};
+			const PatchReplace replacer{ state, shaderCache, &matchedPatches, &replacedPatches };
+
+			switch ( state.scope )
+			{
+			case TextureFindScope::All:
+				if ( state.visibleOnly ) {
+					Scene_forEachVisiblePatch( replacer );
+				}
+				else {
+					GlobalSceneGraph().traverse( PatchForEachAnyWalker<PatchReplace>( replacer ) );
+				}
+				break;
+			case TextureFindScope::Selected:
+				if ( state.visibleOnly ) {
+					Scene_forEachVisibleSelectedPatch( replacer );
+				}
+				else {
+					Scene_forEachSelectedPatch( [&]( PatchInstance& patch ){ replacer( patch.getPatch() ); } );
+				}
+				break;
+			case TextureFindScope::SelectedFaces:
+				Scene_forEachSelectedPatch( [&]( PatchInstance& patch ){ replacer( patch.getPatch() ); } );
+				break;
+			}
+		}
+		else {
+			struct PatchSelect
+			{
+				const TextureFindReplaceState& state;
+				ShaderInfoCache& shaderCache;
+				int* matched;
+				void operator()( PatchInstance& patch ) const {
+					const MatchResult result = MatchShader( state, patch.getPatch().GetShader(), false, shaderCache );
+					if ( !result.matched ) {
+						return;
+					}
+					patch.setSelected( true );
+					++( *matched );
+				}
+			};
+			const PatchSelect selector{ state, shaderCache, &matchedPatches };
+
+			switch ( state.scope )
+			{
+			case TextureFindScope::All:
+				if ( state.visibleOnly ) {
+					Scene_forEachVisiblePatchInstance( selector );
+				}
+				else {
+					GlobalSceneGraph().traverse( PatchForEachInstanceAnyWalker<PatchSelect>( selector ) );
+				}
+				break;
+			case TextureFindScope::Selected:
+				if ( state.visibleOnly ) {
+					Scene_forEachVisibleSelectedPatchInstance( selector );
+				}
+				else {
+					Scene_forEachSelectedPatch( selector );
+				}
+				break;
+			case TextureFindScope::SelectedFaces:
+				Scene_forEachSelectedPatch( selector );
+				break;
+			}
+		}
+	}
+
+	if ( doReplace ) {
+		globalOutputStream() << "Find/Replace Textures: matched " << matchedBrushFaces << " brush faces, " << matchedPatches
+			<< " patches; replaced " << replacedBrushFaces << " brush faces, " << replacedPatches << " patches.\n";
+	}
+	else {
+		globalOutputStream() << "Find Textures: matched " << matchedBrushFaces << " brush faces, " << matchedPatches << " patches.\n";
+	}
+}
+
+void FindReplaceEntities( const EntityFindReplaceOptions& options ){
+	EntityFindReplaceState state;
+	std::string error;
+	if ( !BuildEntityFindReplaceState( options, state, error ) ) {
+		globalErrorStream() << "FindReplaceEntities: " << error.c_str() << ", aborted\n";
+		return;
+	}
+
+	const bool doReplace = state.doReplace;
+	if ( doReplace ) {
+		const auto command = StringStream<256>( "entityFindReplace -find ", state.pattern.findPattern.c_str(), " -replace ", state.pattern.replaceRaw.c_str() );
+		UndoableCommand undo( command );
+	}
+
+	int matchedEntities = 0;
+	int matchedKeys = 0;
+	int matchedValues = 0;
+	int replacedKeys = 0;
+	int replacedValues = 0;
+	bool warnedInvalidKey = false;
+
+	class EntityFindReplaceWalker : public scene::Graph::Walker
 	{
-		Scene_BrushFindReplaceShader( GlobalSceneGraph(), pFind, pReplace );
-		Scene_PatchFindReplaceShader( GlobalSceneGraph(), pFind, pReplace );
+		const EntityFindReplaceState& state;
+		const scene::Node* m_world = Map_FindWorldspawn( g_map );
+		int* matchedEntities;
+		int* matchedKeys;
+		int* matchedValues;
+		int* replacedKeys;
+		int* replacedValues;
+		bool* warnedInvalidKey;
+	public:
+		EntityFindReplaceWalker( const EntityFindReplaceState& state, int* matchedEntities, int* matchedKeys, int* matchedValues,
+		                         int* replacedKeys, int* replacedValues, bool* warnedInvalidKey )
+			: state( state ),
+			  matchedEntities( matchedEntities ),
+			  matchedKeys( matchedKeys ),
+			  matchedValues( matchedValues ),
+			  replacedKeys( replacedKeys ),
+			  replacedValues( replacedValues ),
+			  warnedInvalidKey( warnedInvalidKey ){
+		}
+
+		bool pre( const scene::Path& path, scene::Instance& instance ) const override {
+			if ( state.visibleOnly && !path.top().get().visible() ) {
+				return false;
+			}
+			Entity* entity = Node_getEntity( path.top() );
+			if ( entity == nullptr ) {
+				return true;
+			}
+			if ( !state.includeWorldspawn && path.top().get_pointer() == m_world ) {
+				return false;
+			}
+			if ( state.scope == EntityFindScope::Selected
+			     && !( Instance_isSelected( instance ) || instance.childSelected() ) ) {
+				return false;
+			}
+			if ( !state.classFilters.empty()
+			     && !MatchesAnyFilter( state.classFilters, entity->getClassName(), state.pattern.caseSensitive ) ) {
+				return false;
+			}
+
+			struct KeyValueEntry
+			{
+				std::string key;
+				std::string value;
+			};
+			struct Collector : public Entity::Visitor
+			{
+				std::vector<KeyValueEntry>& entries;
+				explicit Collector( std::vector<KeyValueEntry>& entries ) : entries( entries ){
+				}
+				void visit( const char* key, const char* value ) override {
+					entries.push_back( { key ? key : "", value ? value : "" } );
+				}
+			};
+			std::vector<KeyValueEntry> entries;
+			Collector collector( entries );
+			entity->forEachKeyValue( collector );
+
+			const auto buildReplacement = [this]( const std::string& target, std::string& replacement ) -> bool {
+				if ( state.pattern.replaceMode == TextureReplaceMode::ReplaceFull ) {
+					replacement = state.pattern.replaceRaw;
+					return true;
+				}
+				return BuildReplacedTarget( state.pattern, target, replacement );
+			};
+
+			bool entityMatched = false;
+			std::vector<std::pair<std::string, std::string>> valueUpdates;
+			std::vector<std::pair<std::string, std::string>> keyRenames;
+
+			for ( const auto& entry : entries )
+			{
+				const bool isClassnameKey = string_equal( entry.key.c_str(), "classname" );
+				if ( !state.keyFilters.empty()
+				     && !MatchesAnyFilter( state.keyFilters, entry.key, state.pattern.caseSensitive ) ) {
+					continue;
+				}
+
+				const bool keyMatched = state.searchKeys && MatchTarget( state.pattern, entry.key );
+				const bool valueMatched = state.searchValues && MatchTarget( state.pattern, entry.value );
+
+				if ( keyMatched ) {
+					++( *matchedKeys );
+					entityMatched = true;
+				}
+				if ( valueMatched ) {
+					++( *matchedValues );
+					entityMatched = true;
+				}
+
+				if ( !state.doReplace || isClassnameKey ) {
+					continue;
+				}
+
+				if ( keyMatched && state.replaceKeys ) {
+					std::string replacementKey;
+					if ( buildReplacement( entry.key, replacementKey )
+					     && replacementKey != entry.key ) {
+						if ( !EntityKeyNameValid( replacementKey ) ) {
+							if ( !*warnedInvalidKey ) {
+								*warnedInvalidKey = true;
+								globalWarningStream() << "FindReplaceEntities: invalid key name replacement skipped\n";
+							}
+						}
+						else if ( !string_equal( replacementKey.c_str(), "classname" ) ) {
+							keyRenames.emplace_back( entry.key, replacementKey );
+						}
+					}
+				}
+
+				if ( valueMatched && state.replaceValues ) {
+					std::string replacementValue;
+					if ( buildReplacement( entry.value, replacementValue )
+					     && replacementValue != entry.value ) {
+						valueUpdates.emplace_back( entry.key, replacementValue );
+					}
+				}
+			}
+
+			if ( entityMatched ) {
+				++( *matchedEntities );
+				if ( !state.doReplace ) {
+					if ( Selectable* selectable = Instance_getSelectable( instance ) ) {
+						selectable->setSelected( true );
+					}
+				}
+			}
+
+			if ( state.doReplace ) {
+				for ( const auto& [key, value] : valueUpdates )
+				{
+					entity->setKeyValue( key.c_str(), value.c_str() );
+					++( *replacedValues );
+				}
+				for ( const auto& [oldKey, newKey] : keyRenames )
+				{
+					const char* value = entity->getKeyValue( oldKey.c_str() );
+					entity->setKeyValue( newKey.c_str(), value );
+					entity->setKeyValue( oldKey.c_str(), "" );
+					++( *replacedKeys );
+				}
+			}
+
+			return false;
+		}
+	};
+
+	GlobalSceneGraph().traverse( EntityFindReplaceWalker( state, &matchedEntities, &matchedKeys, &matchedValues, &replacedKeys, &replacedValues, &warnedInvalidKey ) );
+
+	if ( doReplace ) {
+		globalOutputStream() << "Find/Replace Entities: matched " << matchedEntities << " entities, " << matchedKeys
+			<< " key matches, " << matchedValues << " value matches; replaced " << replacedKeys << " keys, "
+			<< replacedValues << " values.\n";
+	}
+	else {
+		globalOutputStream() << "Find Entities: matched " << matchedEntities << " entities, " << matchedKeys
+			<< " key matches, " << matchedValues << " value matches.\n";
 	}
 }
 
@@ -1888,6 +3130,9 @@ void Select_registerCommands(){
 	GlobalCommands_insert( "MoveToCamera", makeCallbackF( MoveToCamera ), QKeySequence( "Ctrl+Shift+V" ) );
 	GlobalCommands_insert( "CloneSelection", makeCallbackF( Selection_Clone ), QKeySequence( "Space" ) );
 	GlobalCommands_insert( "CloneSelectionAndMakeUnique", makeCallbackF( Selection_Clone_MakeUnique ), QKeySequence( "Shift+Space" ) );
+	GlobalCommands_insert( "CreateLinkedDuplicate", makeCallbackF( LinkedGroups_CreateLinkedDuplicate ) );
+	GlobalCommands_insert( "SelectLinkedGroups", makeCallbackF( LinkedGroups_SelectLinkedGroups ) );
+	GlobalCommands_insert( "SeparateLinkedGroups", makeCallbackF( LinkedGroups_SeparateSelectedLinkedGroups ) );
 	GlobalCommands_insert( "DeleteSelection3", makeCallbackF( deleteSelection ), QKeySequence( "Delete" ) );
 	GlobalCommands_insert( "DeleteSelection2", makeCallbackF( deleteSelection ), QKeySequence( "Backspace" ) );
 	GlobalCommands_insert( "DeleteSelection", makeCallbackF( deleteSelection ), QKeySequence( "Z" ) );

@@ -30,6 +30,8 @@
 #include "renderable.h"
 #include "editable.h"
 
+#include "linkedgroups.h"
+
 #include "math/frustum.h"
 #include "selectionlib.h"
 #include "instancelib.h"
@@ -63,6 +65,7 @@ class GenericEntity :
 {
 	EntityKeyValues m_entity;
 	KeyObserverMap m_keyObservers;
+	LinkedGroupsEntityObserver m_linkedGroupObserver;
 	MatrixTransform m_transform;
 
 	OriginKey m_originKey;
@@ -122,6 +125,7 @@ public:
 
 	GenericEntity( EntityClass* eclass, scene::Node& node, const Callback<void()>& transformChanged, const Callback<void()>& evaluateTransform ) :
 		m_entity( eclass ),
+		m_linkedGroupObserver( node ),
 		m_originKey( OriginChangedCaller( *this ) ),
 		m_origin( ORIGINKEY_IDENTITY ),
 		m_anglesKey( AnglesChangedCaller( *this ), m_entity ),
@@ -139,6 +143,7 @@ public:
 	}
 	GenericEntity( const GenericEntity& other, scene::Node& node, const Callback<void()>& transformChanged, const Callback<void()>& evaluateTransform ) :
 		m_entity( other.m_entity ),
+		m_linkedGroupObserver( node ),
 		m_originKey( OriginChangedCaller( *this ) ),
 		m_origin( ORIGINKEY_IDENTITY ),
 		m_anglesKey( AnglesChangedCaller( *this ), m_entity ),
@@ -161,10 +166,12 @@ public:
 			m_filter.instanceAttach();
 			m_entity.instanceAttach( path_find_mapfile( path.begin(), path.end() ) );
 			m_entity.attach( m_keyObservers );
+			m_linkedGroupObserver.attach( m_entity );
 		}
 	}
 	void instanceDetach( const scene::Path& path ){
 		if ( --m_instanceCounter.m_count == 0 ) {
+			m_linkedGroupObserver.detach( m_entity );
 			m_entity.detach( m_keyObservers );
 			m_entity.instanceDetach( path_find_mapfile( path.begin(), path.end() ) );
 			m_filter.instanceDetach();

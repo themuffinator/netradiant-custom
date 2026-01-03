@@ -1270,6 +1270,7 @@ public:
 		case eColBack:
 			return PatchEdgeIter( *this, eRowBack );
 		}
+		return PatchEdgeIter( *this, eRowForward );
 	}
 };
 
@@ -1744,7 +1745,7 @@ void SurfaceInspector_registerPreferencesPage(){
 
 void SurfaceInspector_registerCommands(){
 	GlobalCommands_insert( "TextureReset/Cap", makeCallbackF( SurfaceInspector_ResetTexture ), QKeySequence( "Shift+N" ) );
-	GlobalCommands_insert( "FitTexture", makeCallbackF( SurfaceInspector_FitTexture ), QKeySequence( "Ctrl+F" ) );
+	GlobalCommands_insert( "FitTexture", makeCallbackF( SurfaceInspector_FitTexture ), QKeySequence( "Ctrl+Shift+F" ) );
 	GlobalCommands_insert( "FitTextureWidth", makeCallbackF( SurfaceInspector_FaceFitWidth ) );
 	GlobalCommands_insert( "FitTextureHeight", makeCallbackF( SurfaceInspector_FaceFitHeight ) );
 	GlobalCommands_insert( "FitTextureWidthOnly", makeCallbackF( SurfaceInspector_FaceFitWidthOnly ) );
@@ -1787,4 +1788,3 @@ void SurfaceInspector_Construct(){
 void SurfaceInspector_Destroy(){
 	delete g_SurfaceInspector;
 }
-

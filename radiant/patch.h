@@ -63,6 +63,12 @@
 
 #include "brush_primit.h"
 
+namespace scene
+{
+class Node;
+}
+void LinkedGroups_MarkNodeChanged( scene::Node& node );
+
 enum EPatchType
 {
 	ePatchTypeQuake3,
@@ -689,6 +695,9 @@ public:
 		transformChanged();
 		evaluateTransform();
 		UpdateCachedData();
+		if ( m_node != 0 ) {
+			LinkedGroups_MarkNodeChanged( *m_node );
+		}
 	}
 	bool isValid() const;
 

@@ -454,7 +454,7 @@ const char *PLUGIN_NAME = "Q3 Texture Tools";
 // commands in the menu
 const char *PLUGIN_COMMANDS = "About...;Create/Update WAD keypair";
 
-const char *PLUGIN_ABOUT = "HydraToolz for GTKRadiant\n\n"
+const char *PLUGIN_ABOUT = "HydraToolz for VibeRadiant\n\n"
                            "By Hydra!";
 
 extern "C" void* WINAPI QERPlug_GetFuncTable(){
@@ -467,7 +467,7 @@ const char* QERPlug_Init( void* hApp, void *pWidget ){
 	g_pMainWnd = pMainWidget;
 	memset( &g_FuncTable, 0, sizeof( _QERFuncTable_1 ) );
 	g_FuncTable.m_nSize = sizeof( _QERFuncTable_1 );
-	return "HydraToolz for GTKRadiant"; // do we need this ? hmmm
+	return "HydraToolz for VibeRadiant"; // do we need this ? hmmm
 }
 
 const char* QERPlug_GetName(){

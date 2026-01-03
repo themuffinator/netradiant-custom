@@ -38,6 +38,8 @@
 #include "os/dir.h"
 #include "gtkutil/messagebox.h"
 #include "commandlib.h"
+#include "gtkutil/i18n.h"
+#include "localization.h"
 
 #include "error.h"
 #include "xywindow.h"
@@ -57,7 +59,8 @@
 #include <QHeaderView>
 
 
-void Global_constructPreferences( PreferencesPage& page ){
+void Global_constructPreferences( PreferencesPage& page, bool applyImmediately ){
+	Localization_constructPreferences( page, applyImmediately );
 }
 
 void Interface_constructPreferences( PreferencesPage& page ){
@@ -182,6 +185,7 @@ void RegisterGlobalPreferences( PreferenceSystem& preferences ){
 	preferences.registerPreference( "gamefile", makeCopiedStringStringImportCallback( LatchedAssignCaller( g_GamesDialog.m_sGameFile ) ), CopiedStringExportStringCaller( g_GamesDialog.m_sGameFile.m_latched ) );
 	preferences.registerPreference( "gamePrompt", BoolImportStringCaller( g_GamesDialog.m_bGamePrompt ), BoolExportStringCaller( g_GamesDialog.m_bGamePrompt ) );
 	theme_registerGlobalPreference( preferences );
+	Localization_registerGlobalPreference( preferences );
 }
 
 
@@ -268,12 +272,12 @@ void CGameDialog::CreateGlobalFrame( PreferencesPage& page, bool global ){
 }
 
 void CGameDialog::BuildDialog(){
-	GetWidget()->setWindowTitle( "Global Preferences" );
+	GetWidget()->setWindowTitle( i18n::tr( "Global Preferences" ) );
 
 	auto *vbox = new QVBoxLayout( GetWidget() );
 	vbox->setSizeConstraint( QLayout::SizeConstraint::SetFixedSize );
 	{
-		auto *frame = new QGroupBox( "Game settings" );
+		auto *frame = new QGroupBox( i18n::tr( "Game Settings" ) );
 		vbox->addWidget( frame );
 
 		auto *grid = new QGridLayout( frame );
@@ -282,7 +286,7 @@ void CGameDialog::BuildDialog(){
 		grid->setColumnStretch( 1, 333 );
 		{
 			PreferencesPage preferencesPage( *this, grid );
-			Global_constructPreferences( preferencesPage );
+			Global_constructPreferences( preferencesPage, true );
 			CreateGlobalFrame( preferencesPage, true );
 		}
 	}
@@ -407,8 +411,8 @@ CGameDialog g_GamesDialog;
 static void OnButtonClean( PrefsDlg *dlg ){
 	// make sure this is what the user wants
 	if ( qt_MessageBox( g_Preferences.GetWidget(),
-	                     "This will close Radiant and clean the corresponding registry entries.\n"
-	                     "Next time you start Radiant it will be good as new. Do you wish to continue?",
+	                     "This will close VibeRadiant and clean the corresponding registry entries.\n"
+	                     "Next time you start VibeRadiant it will be good as new. Do you wish to continue?",
 	                     "Reset Registry", EMessageBoxType::Warning, eIDYES | eIDNO ) == eIDYES ) {
 		dlg->EndModal( QDialog::DialogCode::Rejected );
 
@@ -543,14 +547,14 @@ void Widget_connectToggleDependency( QCheckBox* self, QCheckBox* toggleButton ){
 
 
 QStandardItem* PreferenceTree_appendPage( QStandardItemModel* model, QStandardItem* parent, const char* name, int pageIndex ){
-	auto *item = new QStandardItem( name );
+	auto *item = new QStandardItem( i18n::tr( name ) );
 	item->setData( pageIndex, Qt::ItemDataRole::UserRole );
 	parent->appendRow( item );
 	return item;
 }
 
 auto PreferencePages_addPage( QStackedWidget* notebook, const char* name ){
-	auto *frame = new QGroupBox( name );
+	auto *frame = new QGroupBox( i18n::tr( name ) );
 	auto *grid = new QGridLayout( frame );
 	grid->setAlignment( Qt::AlignmentFlag::AlignTop );
 	grid->setColumnStretch( 0, 111 );
@@ -581,7 +585,7 @@ public:
 void PrefsDlg::BuildDialog(){
 	PreferencesDialog_addInterfacePreferences( makeCallbackF( Interface_constructPreferences ) );
 
-	GetWidget()->setWindowTitle( "NetRadiant Preferences" );
+	GetWidget()->setWindowTitle( i18n::tr( "VibeRadiant Preferences" ) );
 
 	{
 		auto *grid = new QGridLayout( GetWidget() );
@@ -591,7 +595,7 @@ void PrefsDlg::BuildDialog(){
 			grid->addWidget( buttons, 1, 1 );
 			QObject::connect( buttons, &QDialogButtonBox::accepted, GetWidget(), &QDialog::accept );
 			QObject::connect( buttons, &QDialogButtonBox::rejected, GetWidget(), &QDialog::reject );
-			QObject::connect( buttons->addButton( "Clean", QDialogButtonBox::ButtonRole::ResetRole ), &QPushButton::clicked, [this](){ OnButtonClean( this ); } );
+			QObject::connect( buttons->addButton( i18n::tr( "Clean" ), QDialogButtonBox::ButtonRole::ResetRole ), &QPushButton::clicked, [this](){ OnButtonClean( this ); } );
 		}
 
 		{
@@ -627,7 +631,7 @@ void PrefsDlg::BuildDialog(){
 							const auto [ pageIndex, layout ] = PreferencePages_addPage( m_notebook, "Global Preferences" );
 							{
 								PreferencesPage preferencesPage( *this, layout );
-								Global_constructPreferences( preferencesPage );
+								Global_constructPreferences( preferencesPage, false );
 							}
 							QStandardItem *group = PreferenceTree_appendPage( model, model->invisibleRootItem(), "Global", pageIndex );
 							{

@@ -24,15 +24,15 @@
 #include "generic/callback.h"
 
 #include "accelerator.h"
+#include "i18n.h"
 
 
 QAction* create_menu_item_with_mnemonic( QMenu* menu, const char *mnemonic, const Callback<void()>& callback ){
-	return menu->addAction( mnemonic, callback );
+	return menu->addAction( i18n::tr( mnemonic ), callback );
 }
 
 QAction* create_check_menu_item_with_mnemonic( QMenu* menu, const char* mnemonic, const Callback<void()>& callback ){
-	QAction *item = menu->addAction( mnemonic, callback );
+	QAction *item = menu->addAction( i18n::tr( mnemonic ), callback );
 	item->setCheckable( true );
 	return item;
 }
-

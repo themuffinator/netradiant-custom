@@ -1,0 +1,31 @@
+{
+  "&Build": "\u6784\u5efa(&B)",
+  "&Curve": "\u66f2\u7ebf(&C)",
+  "&Edit": "\u7f16\u8f91(&E)",
+  "&File": "\u6587\u4ef6(&F)",
+  "&Grid": "\u7f51\u683c(&G)",
+  "&Help": "\u5e2e\u52a9(&H)",
+  "&Plugins": "\u63d2\u4ef6(&P)",
+  "Auto (System)": "\u81ea\u52a8\uff08\u7cfb\u7edf\uff09",
+  "Brush": "\u7b14\u5237",
+  "Display Preferences": "\u663e\u793a\u9996\u9009\u9879",
+  "E&ntity": "\u5b9e\u4f53(&E)",
+  "E&xit": "\u9000\u51fa(&X)",
+  "Engine Path Configuration": "\u5f15\u64ce\u8def\u5f84\u914d\u7f6e",
+  "Game Settings": "\u6e38\u620f\u8bbe\u7f6e",
+  "General Settings": "\u5e38\u89c4\u8bbe\u7f6e",
+  "Global Preferences": "\u5168\u5c40\u9996\u9009\u9879",
+  "Interface Preferences": "\u754c\u9762\u9996\u9009\u9879",
+  "Language": "\u8bed\u8a00",
+  "M&isc": "\u5176\u4ed6(&O)",
+  "M&odify": "\u4fee\u6539(&M)",
+  "Path settings": "\u8def\u5f84\u8bbe\u7f6e",
+  "Path Settings": "\u8def\u5f84\u8bbe\u7f6e",
+  "Pre&ferences...": "\u9996\u9009\u9879(&P)...",
+  "VibeRadiant Preferences": "VibeRadiant \u9996\u9009\u9879",
+  "Vie&w": "\u89c6\u56fe(&V)",
+  "_meta": {
+    "code": "zh",
+    "name": "Chinese (Simplified)"
+  }
+}

@@ -345,7 +345,6 @@ void ReadIniFile( const char *file ){
 
    does a varargs printf into a temp buffer, so I don't need to have
    varargs versions of all text functions.
-   FIXME: make this buffer size safe someday
    ============
  */
 char *va( const char *format, ... ){
@@ -353,8 +352,12 @@ char *va( const char *format, ... ){
 	static char string[1024];
 
 	va_start( argptr, format );
-	vsprintf( string, format,argptr );
+	const int written = vsnprintf( string, sizeof( string ), format, argptr );
 	va_end( argptr );
+
+	if ( written < 0 || written >= (int)sizeof( string ) ) {
+		string[sizeof( string ) - 1] = '\0';
+	}
 
 	return string;
 }

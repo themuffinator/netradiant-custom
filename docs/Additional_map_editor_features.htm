@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
 <head>
 <meta http-equiv="content-type" content="text/html; charset=utf-8" />
-<title>NetRadiant - Additional map editor features - Alientrap Development</title>
+<title>VibeRadiant - Additional map editor features - Alientrap Development</title>
 <meta name="description" content="Redmine" />
 <meta name="keywords" content="issue,bug,tracker" />
 <link href="application.css" media="all" rel="stylesheet" type="text/css" />
@@ -41,27 +41,27 @@ td.formatted_questions ol { margin-top: 0px; margin-bottom: 0px; }
 
 <div id="header">
     <div id="quick-search">
-        <form action="/search/index/netradiant" method="get">
+        <form action="/search/index/VibeRadiant" method="get">
         <input name="wiki_pages" type="hidden" value="1" />
-        <a href="/search/index/netradiant" accesskey="4">Поиск</a>:
+        <a href="/search/index/VibeRadiant" accesskey="4">Поиск</a>:
         <input accesskey="f" class="small" id="q" name="q" size="20" type="text" />
         </form>
 
     </div>
 
-    <h1>NetRadiant</h1>
+    <h1>VibeRadiant</h1>
 
     <div id="main-menu">
-        <ul><li><a href="/projects/netradiant" class="overview">Просмотр</a></li>
-<li><a href="/projects/netradiant/activity" class="activity">Активность</a></li>
-<li><a href="/projects/netradiant/issues" class="issues">Задачи</a></li>
-<li><a href="/projects/netradiant/news" class="news">Новости</a></li>
-<li><a href="/projects/netradiant/documents" class="documents">Документы</a></li>
-<li><a href="/projects/netradiant/wiki" class="wiki selected">Wiki</a></li>
-<li><a href="/projects/netradiant/boards" class="boards">Форумы</a></li>
-<li><a href="/projects/netradiant/files" class="files">Файлы</a></li>
-<li><a href="/projects/netradiant/repository" class="repository">Хранилище</a></li>
-<li><a href="/ezfaq/index/netradiant" class="ezfaq">FAQ</a></li></ul>
+        <ul><li><a href="/projects/VibeRadiant" class="overview">Просмотр</a></li>
+<li><a href="/projects/VibeRadiant/activity" class="activity">Активность</a></li>
+<li><a href="/projects/VibeRadiant/issues" class="issues">Задачи</a></li>
+<li><a href="/projects/VibeRadiant/news" class="news">Новости</a></li>
+<li><a href="/projects/VibeRadiant/documents" class="documents">Документы</a></li>
+<li><a href="/projects/VibeRadiant/wiki" class="wiki selected">Wiki</a></li>
+<li><a href="/projects/VibeRadiant/boards" class="boards">Форумы</a></li>
+<li><a href="/projects/VibeRadiant/files" class="files">Файлы</a></li>
+<li><a href="/projects/VibeRadiant/repository" class="repository">Хранилище</a></li>
+<li><a href="/ezfaq/index/VibeRadiant" class="ezfaq">FAQ</a></li></ul>
     </div>
 </div>
 
@@ -70,9 +70,9 @@ td.formatted_questions ol { margin-top: 0px; margin-bottom: 0px; }
 
   <h3>Wiki</h3>
 
-<a href="/projects/netradiant/wiki">Стартовая страница</a><br />
-<a href="/projects/netradiant/wiki/Page_index">Оглавление</a><br />
-<a href="/projects/netradiant/wiki/Date_index">История страниц</a><br />
+<a href="/projects/VibeRadiant/wiki">Стартовая страница</a><br />
+<a href="/projects/VibeRadiant/wiki/Page_index">Оглавление</a><br />
+<a href="/projects/VibeRadiant/wiki/Date_index">История страниц</a><br />
 
 
 
@@ -90,7 +90,7 @@ td.formatted_questions ol { margin-top: 0px; margin-bottom: 0px; }
 
 
 
-<a href="/projects/netradiant/wiki/Additional_map_editor_features/history" class="icon icon-history">История</a>
+<a href="/projects/VibeRadiant/wiki/Additional_map_editor_features/history" class="icon icon-history">История</a>
 </div>
 
 
@@ -155,6 +155,15 @@ td.formatted_questions ol { margin-top: 0px; margin-bottom: 0px; }
 	<p>"Clone selection" (space) no longer changes <code>targetname</code>/<code>target</code> of entities, so you can clone to create many entities to target one. If you want to change targetname/target when cloning like Radiant did before, use Shift+Space.</p>
 
 
+	<h2 id="Linked-duplicates">Linked duplicates<a href="#Linked-duplicates" class="wiki-anchor">&para;</a></h2>
+
+
+	<p>"Create Linked Duplicate" creates a linked copy of the selected group. Linked groups stay synchronized: edits to one instance (entity keys, brushes, or patch changes) propagate to all linked copies.</p>
+
+
+	<p>Transform changes (move, rotate, scale, skew) are tracked per group and are applied consistently across linked copies. To manage links, use "Select Linked Groups" to grab all instances or "Separate Linked Groups" to break the link for the selected copies.</p>
+
+
 	<h2 id="The-clip-line">The clip line<a href="#The-clip-line" class="wiki-anchor">&para;</a></h2>
 
 
@@ -167,7 +176,7 @@ td.formatted_questions ol { margin-top: 0px; margin-bottom: 0px; }
 	<h2 class="clearbefore" id="Automatic-game-configuration">Automatic game configuration<a href="#Automatic-game-configuration" class="wiki-anchor">&para;</a></h2>
 
 
-	<p>NetRadiant detects being inside a Q2World or Nexuiz install, and automatically configures its engine path to it. Other games can be easily added to the list.</p>
+	<p>VibeRadiant detects being inside a Q2World or Nexuiz install, and automatically configures its engine path to it. Other games can be easily added to the list.</p>
 
 
 	<h2 id="Editable-keyboard-shortcuts">Editable keyboard shortcuts<a href="#Editable-keyboard-shortcuts" class="wiki-anchor">&para;</a></h2>
@@ -176,7 +185,7 @@ td.formatted_questions ol { margin-top: 0px; margin-bottom: 0px; }
 	<p>The Help/Keyboard shortcuts dialog now allows changing the shortcuts, so you can e.g. enable previously unbound features.</p>
 
 
-	<h2 id="Portable-NetRadiant">Portable NetRadiant<a href="#Portable-NetRadiant" class="wiki-anchor">&para;</a></h2>
+	<h2 id="Portable-VibeRadiant">Portable VibeRadiant<a href="#Portable-VibeRadiant" class="wiki-anchor">&para;</a></h2>
 
 
 	<p>If you create a subdirectory called <code>settings</code> in your Radiant install, the install becomes "portable", that means it'll write its settings there, and not in a user-specific directory. Useful to take Radiant together with its settings with you on an USB stick.</p>
@@ -210,8 +219,8 @@ td.formatted_questions ol { margin-top: 0px; margin-bottom: 0px; }
 
 
 <p class="other-formats">Экспортировать в
-	<span><a href="/projects/netradiant/wiki/Additional_map_editor_features?format=html&amp;version=8" class="html" rel="nofollow">HTML</a></span>
-	<span><a href="/projects/netradiant/wiki/Additional_map_editor_features?format=txt&amp;version=8" class="txt" rel="nofollow">TXT</a></span>
+	<span><a href="/projects/VibeRadiant/wiki/Additional_map_editor_features?format=html&amp;version=8" class="html" rel="nofollow">HTML</a></span>
+	<span><a href="/projects/VibeRadiant/wiki/Additional_map_editor_features?format=txt&amp;version=8" class="txt" rel="nofollow">TXT</a></span>
 </p>
 
 

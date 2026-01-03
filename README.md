@@ -1,9 +1,9 @@
-NetRadiant-custom
-=================
+VibeRadiant
+===========
 
 The open-source, cross-platform level editor for id Tech based games.
 
-NetRadiant-custom is a fork of NetRadiant (GtkRadiant 1.4&rarr;massive rewrite&rarr;1.5&rarr;NetRadiant&rarr;this)
+VibeRadiant is a fork of NetRadiant (GtkRadiant 1.4&rarr;massive rewrite&rarr;1.5&rarr;NetRadiant&rarr;this)
 
 ---
 ![screenshot](/../readme_files/radDarkShot.png?raw=true)

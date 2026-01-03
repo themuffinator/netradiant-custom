@@ -31,10 +31,10 @@ bt/*.txt		--- A few text files required by the plugin.
 What's a boy to do?
 [=================]
 
-Put The plugin in your GTKRadiant plugins folder:
-e.g. mine: c:\gamez\quake3\GTKRadiant\plugins
+Put The plugin in your VibeRadiant plugins folder:
+e.g. mine: c:\gamez\quake3\VibeRadiant\plugins
 
-Run Radiant, and select the toolz from the dropdown plugin menu.
+Run VibeRadiant, and select the toolz from the dropdown plugin menu.
 
 Help is available in the form of a manual on my site.
 

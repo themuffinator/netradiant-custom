@@ -25,6 +25,7 @@
 
 #include <vector>
 #include <map>
+#include <cstring>
 #include "os/path.h"
 
 #include "modulesystem.h"
@@ -69,7 +70,6 @@ public:
 	}
 
 	void registerModule( const char* type, int version, const char* name, Module& module ) override {
-		ASSERT_NOTNULL( (volatile intptr_t)&module );
 		if ( !m_modules.insert( Modules_::value_type( ModuleKey( type, version, name ), &module ) ).second ) {
 			globalErrorStream() << "module already registered: type=" << Quoted( type ) << " name=" << Quoted( name ) << '\n';
 		}
@@ -122,7 +122,7 @@ class DynamicLibrary
 {
 	HMODULE m_library;
 public:
-	typedef int ( __stdcall * FunctionPointer )();
+	typedef FARPROC FunctionPointer;
 
 	DynamicLibrary( const char* filename ){
 		m_library = LoadLibrary( filename );
@@ -140,7 +140,7 @@ public:
 		return m_library == 0;
 	}
 	FunctionPointer findSymbol( const char* symbol ){
-		FunctionPointer address = (FunctionPointer) GetProcAddress( m_library, symbol );
+		FunctionPointer address = GetProcAddress( m_library, symbol );
 		if ( address == 0 ) {
 			globalErrorStream() << "GetProcAddress failed: " << SingleQuoted( symbol ) << '\n';
 			globalErrorStream() << "GetLastError: " << FormatGetLastError();
@@ -157,7 +157,7 @@ class DynamicLibrary
 {
 	void* m_library;
 public:
-	typedef int ( *FunctionPointer )();
+	typedef void* FunctionPointer;
 
 	DynamicLibrary( const char* filename ){
 		m_library = dlopen( filename, RTLD_NOW );
@@ -175,7 +175,7 @@ public:
 		return m_library == 0;
 	}
 	FunctionPointer findSymbol( const char* symbol ){
-		FunctionPointer p = (FunctionPointer)dlsym( m_library, symbol );
+		FunctionPointer p = dlsym( m_library, symbol );
 		if ( p == 0 ) {
 			const char* error = reinterpret_cast<const char*>( dlerror() );
 			if ( error != 0 ) {
@@ -195,11 +195,22 @@ class DynamicLibraryModule
 	typedef void ( RADIANT_DLLIMPORT * RegisterModulesFunc )( ModuleServer& server );
 	DynamicLibrary m_library;
 	RegisterModulesFunc m_registerModule;
+
+	template<typename To, typename From>
+	static To FunctionPointerCast( From ptr ){
+		static_assert( sizeof( To ) == sizeof( From ), "function pointer size mismatch" );
+		To out{};
+		std::memcpy( &out, &ptr, sizeof( out ) );
+		return out;
+	}
 public:
 	DynamicLibraryModule( const char* filename )
 		: m_library( filename ), m_registerModule( 0 ){
 		if ( !m_library.failed() ) {
-			m_registerModule = reinterpret_cast<RegisterModulesFunc>( m_library.findSymbol( "Radiant_RegisterModules" ) );
+			const DynamicLibrary::FunctionPointer symbol = m_library.findSymbol( "Radiant_RegisterModules" );
+			if ( symbol != 0 ) {
+				m_registerModule = FunctionPointerCast<RegisterModulesFunc>( symbol );
+			}
 #if 0
 			if ( !m_registerModule ) {
 				m_registerModule = reinterpret_cast<RegisterModulesFunc>( m_library.findSymbol( "Radiant_RegisterModules@4" ) );

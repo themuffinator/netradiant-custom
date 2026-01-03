@@ -203,6 +203,7 @@ public:
 		splineTime.Clear();
 		selected = NULL;
 		dirty = true;
+		totalDistanceCache = 0.0f;
 		activeSegment = 0;
 		granularity = 0.025f;
 		pathColor.set( 1.0f, 0.5f, 0.0f );
@@ -340,6 +341,7 @@ protected:
 	idVec3 *selected;
 	idVec3 pathColor, segmentColor, controlColor, activeColor;
 	float granularity;
+	float totalDistanceCache;
 	bool editMode;
 	bool dirty;
 	int activeSegment;

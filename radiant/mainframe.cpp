@@ -69,6 +69,7 @@
 #include "gtkutil/glfont.h"
 #include "gtkutil/glwidget.h"
 #include "gtkutil/image.h"
+#include "gtkutil/i18n.h"
 #include "gtkutil/menu.h"
 #include "gtkutil/guisettings.h"
 
@@ -418,11 +419,11 @@ class PathsDialog : public Dialog
 {
 public:
 	void BuildDialog() override {
-		GetWidget()->setWindowTitle( "Engine Path Configuration" );
+		GetWidget()->setWindowTitle( i18n::tr( "Engine Path Configuration" ) );
 
 		auto *vbox = new QVBoxLayout( GetWidget() );
 		{
-			auto *frame = new QGroupBox( "Path settings" );
+		auto *frame = new QGroupBox( i18n::tr( "Path Settings" ) );
 			vbox->addWidget( frame );
 
 			auto *grid = new QGridLayout( frame );
@@ -595,7 +596,7 @@ void Radiant_Initialise(){
 	Preferences_Load();
 
 	bool success = Radiant_Construct( GlobalModuleServer_get() );
-	ASSERT_MESSAGE( success, "module system failed to initialise - see radiant.log for error messages" );
+	ASSERT_MESSAGE( success, "module system failed to initialise - see viberadiant.log for error messages" );
 
 	g_gameToolsPathObservers.realise();
 	g_gameModeObservers.realise();
@@ -619,7 +620,7 @@ void Radiant_Shutdown(){
 }
 
 void Exit(){
-	if ( ConfirmModified( "Exit Radiant" ) ) {
+	if ( ConfirmModified( "Exit VibeRadiant" ) ) {
 		QCoreApplication::quit();
 	}
 }
@@ -636,7 +637,7 @@ void Exit(){
 extern char **environ;
 #endif
 void Radiant_Restart(){
-	if( ConfirmModified( "Restart Radiant" ) ){
+	if( ConfirmModified( "Restart VibeRadiant" ) ){
 		const auto mapname = StringStream( Quoted( Map_Name( g_map ) ) );
 
 		char *argv[] = { string_clone( environment_get_app_filepath() ),
@@ -670,7 +671,7 @@ void Restart(){
 
 
 void OpenUpdateURL(){
-	OpenURL( "https://github.com/Garux/netradiant-custom/releases/latest" );
+	OpenURL( "https://github.com/Garux/VibeRadiant/releases/latest" );
 #if 0
 	// build the URL
 	StringOutputStream URL( 256 );
@@ -696,7 +697,7 @@ void OpenHelpURL(){
 
 void OpenBugReportURL(){
 	// OpenURL( "http://www.icculus.org/netradiant/?cmd=bugs" );
-	OpenURL( "https://github.com/Garux/netradiant-custom/issues" );
+	OpenURL( "https://github.com/Garux/VibeRadiant/issues" );
 }
 
 
@@ -867,7 +868,7 @@ LatchedBool g_Layout_builtInGroupDialog( false, "Built-In Group Dialog" );
 
 void create_file_menu( QMenuBar *menubar ){
 	// File menu
-	QMenu *menu = menubar->addMenu( "&File" );
+	QMenu *menu = menubar->addMenu( i18n::tr( "&File" ) );
 
 	menu->setTearOffEnabled( g_Layout_enableDetachableMenus.m_value );
 
@@ -891,7 +892,7 @@ void create_file_menu( QMenuBar *menubar ){
 
 void create_edit_menu( QMenuBar *menubar ){
 	// Edit menu
-	QMenu *menu = menubar->addMenu( "&Edit" );
+	QMenu *menu = menubar->addMenu( i18n::tr( "&Edit" ) );
 
 	menu->setTearOffEnabled( g_Layout_enableDetachableMenus.m_value );
 
@@ -905,6 +906,9 @@ void create_edit_menu( QMenuBar *menubar ){
 	menu->addSeparator();
 	create_menu_item_with_mnemonic( menu, "&Duplicate", "CloneSelection" );
 	create_menu_item_with_mnemonic( menu, "Duplicate, make uni&que", "CloneSelectionAndMakeUnique" );
+	create_menu_item_with_mnemonic( menu, "Create &Linked Duplicate", "CreateLinkedDuplicate" );
+	create_menu_item_with_mnemonic( menu, "Select Linked &Groups", "SelectLinkedGroups" );
+	create_menu_item_with_mnemonic( menu, "Separate Linked &Groups", "SeparateLinkedGroups" );
 	create_menu_item_with_mnemonic( menu, "D&elete", "DeleteSelection" );
 	//create_menu_item_with_mnemonic( menu, "Pa&rent", "ParentSelection" );
 	menu->addSeparator();
@@ -929,7 +933,7 @@ void create_edit_menu( QMenuBar *menubar ){
 
 void create_view_menu( QMenuBar *menubar, MainFrame::EViewStyle style ){
 	// View menu
-	QMenu *menu = menubar->addMenu( "Vie&w" );
+	QMenu *menu = menubar->addMenu( i18n::tr( "Vie&w" ) );
 
 	menu->setTearOffEnabled( g_Layout_enableDetachableMenus.m_value );
 
@@ -953,7 +957,7 @@ void create_view_menu( QMenuBar *menubar, MainFrame::EViewStyle style ){
 
 	menu->addSeparator();
 	{
-		QMenu* submenu = menu->addMenu( "Camera" );
+		QMenu* submenu = menu->addMenu( i18n::tr( "Camera" ) );
 
 		submenu->setTearOffEnabled( g_Layout_enableDetachableMenus.m_value );
 
@@ -974,7 +978,7 @@ void create_view_menu( QMenuBar *menubar, MainFrame::EViewStyle style ){
 	}
 	menu->addSeparator();
 	{
-		QMenu* submenu = menu->addMenu( "Orthographic" );
+		QMenu* submenu = menu->addMenu( i18n::tr( "Orthographic" ) );
 
 		submenu->setTearOffEnabled( g_Layout_enableDetachableMenus.m_value );
 
@@ -1000,7 +1004,7 @@ void create_view_menu( QMenuBar *menubar, MainFrame::EViewStyle style ){
 	menu->addSeparator();
 
 	{
-		QMenu* submenu = menu->addMenu( "Show" );
+		QMenu* submenu = menu->addMenu( i18n::tr( "Show" ) );
 
 		submenu->setTearOffEnabled( g_Layout_enableDetachableMenus.m_value );
 
@@ -1026,7 +1030,7 @@ void create_view_menu( QMenuBar *menubar, MainFrame::EViewStyle style ){
 	}
 
 	{
-		QMenu* submenu = menu->addMenu( "Filter" );
+		QMenu* submenu = menu->addMenu( i18n::tr( "Filter" ) );
 
 		submenu->setTearOffEnabled( g_Layout_enableDetachableMenus.m_value );
 
@@ -1039,7 +1043,7 @@ void create_view_menu( QMenuBar *menubar, MainFrame::EViewStyle style ){
 	}
 	menu->addSeparator();
 	{
-		QMenu* submenu = menu->addMenu( "Region" );
+		QMenu* submenu = menu->addMenu( i18n::tr( "Region" ) );
 
 		submenu->setTearOffEnabled( g_Layout_enableDetachableMenus.m_value );
 
@@ -1054,11 +1058,11 @@ void create_view_menu( QMenuBar *menubar, MainFrame::EViewStyle style ){
 
 void create_selection_menu( QMenuBar *menubar ){
 	// Selection menu
-	QMenu *menu = menubar->addMenu( "M&odify" );
+	QMenu *menu = menubar->addMenu( i18n::tr( "M&odify" ) );
 
 	menu->setTearOffEnabled( g_Layout_enableDetachableMenus.m_value );
 	{
-		QMenu* submenu = menu->addMenu( "Components" );
+		QMenu* submenu = menu->addMenu( i18n::tr( "Components" ) );
 
 		submenu->setTearOffEnabled( g_Layout_enableDetachableMenus.m_value );
 
@@ -1073,7 +1077,7 @@ void create_selection_menu( QMenuBar *menubar ){
 	menu->addSeparator();
 
 	{
-		QMenu* submenu = menu->addMenu( "Nudge" );
+		QMenu* submenu = menu->addMenu( i18n::tr( "Nudge" ) );
 
 		submenu->setTearOffEnabled( g_Layout_enableDetachableMenus.m_value );
 
@@ -1086,7 +1090,7 @@ void create_selection_menu( QMenuBar *menubar ){
 		create_menu_item_with_mnemonic( submenu, "Nudge -Z", "MoveSelectionDOWN" );
 	}
 	{
-		QMenu* submenu = menu->addMenu( "Rotate" );
+		QMenu* submenu = menu->addMenu( i18n::tr( "Rotate" ) );
 
 		submenu->setTearOffEnabled( g_Layout_enableDetachableMenus.m_value );
 
@@ -1098,7 +1102,7 @@ void create_selection_menu( QMenuBar *menubar ){
 		create_menu_item_with_mnemonic( submenu, "Rotate Anticlockwise", "RotateSelectionAnticlockwise" );
 	}
 	{
-		QMenu* submenu = menu->addMenu( "Flip" );
+		QMenu* submenu = menu->addMenu( i18n::tr( "Flip" ) );
 
 		submenu->setTearOffEnabled( g_Layout_enableDetachableMenus.m_value );
 
@@ -1114,7 +1118,7 @@ void create_selection_menu( QMenuBar *menubar ){
 	create_menu_item_with_mnemonic( menu, "Arbitrary scale...", "ArbitraryScale" );
 	menu->addSeparator();
 	{
-		QMenu* submenu = menu->addMenu( "Repeat" );
+		QMenu* submenu = menu->addMenu( i18n::tr( "Repeat" ) );
 
 		submenu->setTearOffEnabled( g_Layout_enableDetachableMenus.m_value );
 
@@ -1136,7 +1140,7 @@ void create_selection_menu( QMenuBar *menubar ){
 
 void create_bsp_menu( QMenuBar *menubar ){
 	// BSP menu
-	QMenu *menu = menubar->addMenu( "&Build" );
+	QMenu *menu = menubar->addMenu( i18n::tr( "&Build" ) );
 
 	menu->setTearOffEnabled( g_Layout_enableDetachableMenus.m_value );
 
@@ -1153,7 +1157,7 @@ void create_bsp_menu( QMenuBar *menubar ){
 
 void create_grid_menu( QMenuBar *menubar ){
 	// Grid menu
-	QMenu *menu = menubar->addMenu( "&Grid" );
+	QMenu *menu = menubar->addMenu( i18n::tr( "&Grid" ) );
 
 	menu->setTearOffEnabled( g_Layout_enableDetachableMenus.m_value );
 
@@ -1162,7 +1166,7 @@ void create_grid_menu( QMenuBar *menubar ){
 
 void create_misc_menu( QMenuBar *menubar ){
 	// Misc menu
-	QMenu *menu = menubar->addMenu( "M&isc" );
+	QMenu *menu = menubar->addMenu( i18n::tr( "M&isc" ) );
 
 	menu->setTearOffEnabled( g_Layout_enableDetachableMenus.m_value );
 #if 0
@@ -1180,7 +1184,7 @@ void create_misc_menu( QMenuBar *menubar ){
 
 void create_entity_menu( QMenuBar *menubar ){
 	// Entity menu
-	QMenu *menu = menubar->addMenu( "E&ntity" );
+	QMenu *menu = menubar->addMenu( i18n::tr( "E&ntity" ) );
 
 	menu->setTearOffEnabled( g_Layout_enableDetachableMenus.m_value );
 
@@ -1189,7 +1193,7 @@ void create_entity_menu( QMenuBar *menubar ){
 
 void create_brush_menu( QMenuBar *menubar ){
 	// Brush menu
-	QMenu *menu = menubar->addMenu( "Brush" );
+	QMenu *menu = menubar->addMenu( i18n::tr( "Brush" ) );
 
 	menu->setTearOffEnabled( g_Layout_enableDetachableMenus.m_value );
 
@@ -1198,7 +1202,7 @@ void create_brush_menu( QMenuBar *menubar ){
 
 void create_patch_menu( QMenuBar *menubar ){
 	// Curve menu
-	QMenu *menu = menubar->addMenu( "&Curve" );
+	QMenu *menu = menubar->addMenu( i18n::tr( "&Curve" ) );
 
 	menu->setTearOffEnabled( g_Layout_enableDetachableMenus.m_value );
 
@@ -1207,7 +1211,7 @@ void create_patch_menu( QMenuBar *menubar ){
 
 void create_help_menu( QMenuBar *menubar ){
 	// Help menu
-	QMenu *menu = menubar->addMenu( "&Help" );
+	QMenu *menu = menubar->addMenu( i18n::tr( "&Help" ) );
 
 	menu->setTearOffEnabled( g_Layout_enableDetachableMenus.m_value );
 
@@ -1218,7 +1222,7 @@ void create_help_menu( QMenuBar *menubar ){
 	create_game_help_menu( menu );
 
 	create_menu_item_with_mnemonic( menu, "Bug report", makeCallbackF( OpenBugReportURL ) );
-	create_menu_item_with_mnemonic( menu, "Check for NetRadiant update", "CheckForUpdate" ); // FIXME
+	create_menu_item_with_mnemonic( menu, "Check for VibeRadiant update", "CheckForUpdate" ); // FIXME
 	create_menu_item_with_mnemonic( menu, "&About", makeCallbackF( DoAbout ) );
 }
 
@@ -1678,19 +1682,19 @@ void MainFrame::Create(){
 
 	{
 		{
-			auto *toolbar = new QToolBar( "Main Toolbar" );
+			auto *toolbar = new QToolBar( i18n::tr( "Main Toolbar" ) );
 			toolbar->setObjectName( "Main_Toolbar" ); // required for proper state save/restore
 			window->addToolBar( Qt::ToolBarArea::TopToolBarArea, toolbar );
 			create_main_toolbar( toolbar, CurrentStyle() );
 		}
 		{
-			auto *toolbar = new QToolBar( "Filter Toolbar" );
+			auto *toolbar = new QToolBar( i18n::tr( "Filter Toolbar" ) );
 			toolbar->setObjectName( "Filter_Toolbar" ); // required for proper state save/restore
 			window->addToolBar( Qt::ToolBarArea::RightToolBarArea, toolbar );
 			create_filter_toolbar( toolbar );
 		}
 		{
-			auto *toolbar = new QToolBar( "Plugin Toolbar" );
+			auto *toolbar = new QToolBar( i18n::tr( "Plugin Toolbar" ) );
 			toolbar->setObjectName( "Plugin_Toolbar" ); // required for proper state save/restore
 			window->addToolBar( Qt::ToolBarArea::RightToolBarArea, toolbar );
 			create_plugin_toolbar( toolbar );
@@ -2157,4 +2161,3 @@ void MainFrame_Destroy(){
 	g_patchCount.setCountChangedCallback( Callback<void()>() );
 	g_brushCount.setCountChangedCallback( Callback<void()>() );
 }
-

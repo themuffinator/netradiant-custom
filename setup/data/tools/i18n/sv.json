@@ -1,0 +1,31 @@
+{
+  "&Build": "&Bygg",
+  "&Curve": "&Kurva",
+  "&Edit": "&Redigera",
+  "&File": "&Arkiv",
+  "&Grid": "&Rutn\u00e4t",
+  "&Help": "&Hj\u00e4lp",
+  "&Plugins": "&Till\u00e4gg",
+  "Auto (System)": "Automatiskt (System)",
+  "Brush": "Pensel",
+  "Display Preferences": "Visningsinst\u00e4llningar",
+  "E&ntity": "&Entitet",
+  "E&xit": "&Avsluta",
+  "Engine Path Configuration": "Konfiguration av motorns s\u00f6kv\u00e4g",
+  "Game Settings": "Spelinst\u00e4llningar",
+  "General Settings": "Allm\u00e4nna inst\u00e4llningar",
+  "Global Preferences": "Globala inst\u00e4llningar",
+  "Interface Preferences": "Gr\u00e4nssnittsinst\u00e4llningar",
+  "Language": "Spr\u00e5k",
+  "M&isc": "&\u00d6vrigt",
+  "M&odify": "&\u00c4ndra",
+  "Path settings": "S\u00f6kv\u00e4gsinst\u00e4llningar",
+  "Path Settings": "S\u00f6kv\u00e4gsinst\u00e4llningar",
+  "Pre&ferences...": "&Inst\u00e4llningar...",
+  "VibeRadiant Preferences": "VibeRadiant-inst\u00e4llningar",
+  "Vie&w": "&Visa",
+  "_meta": {
+    "code": "sv",
+    "name": "Swedish"
+  }
+}

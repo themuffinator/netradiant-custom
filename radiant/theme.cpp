@@ -31,6 +31,7 @@
 #include "stringio.h"
 #include "stream/stringstream.h"
 #include "gtkutil/image.h"
+#include "gtkutil/i18n.h"
 
 
 enum class ETheme{
@@ -155,7 +156,7 @@ void theme_set( ETheme theme ){
 }
 
 void theme_construct_menu( class QMenu *menu ){
-	auto *m = menu->addMenu( "GUI Theme" );
+	auto *m = menu->addMenu( i18n::tr( "GUI Theme" ) );
 	m->setTearOffEnabled( g_Layout_enableDetachableMenus.m_value );
 	auto *group = new QActionGroup( m );
 

@@ -24,4 +24,4 @@
 #include "qerplugin.h"
 
 /// \brief Shows a modal message-box.
-EMessageBoxReturn qt_MessageBox( class QWidget *parent, const char* text, const char* title = "NetRadiant", EMessageBoxType type = EMessageBoxType::Info, int buttons = 0 );
+EMessageBoxReturn qt_MessageBox( class QWidget *parent, const char* text, const char* title = "VibeRadiant", EMessageBoxType type = EMessageBoxType::Info, int buttons = 0 );

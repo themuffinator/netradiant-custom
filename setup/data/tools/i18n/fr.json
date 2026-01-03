@@ -1,0 +1,31 @@
+{
+  "&Build": "&Compilation",
+  "&Curve": "&Courbe",
+  "&Edit": "&\u00c9dition",
+  "&File": "&Fichier",
+  "&Grid": "&Grille",
+  "&Help": "&Aide",
+  "&Plugins": "&Plugins",
+  "Auto (System)": "Auto (Syst\u00e8me)",
+  "Brush": "Brosse",
+  "Display Preferences": "Pr\u00e9f\u00e9rences d'affichage",
+  "E&ntity": "E&ntit\u00e9",
+  "E&xit": "&Quitter",
+  "Engine Path Configuration": "Configuration du chemin du moteur",
+  "Game Settings": "Param\u00e8tres du jeu",
+  "General Settings": "Param\u00e8tres g\u00e9n\u00e9raux",
+  "Global Preferences": "Pr\u00e9f\u00e9rences globales",
+  "Interface Preferences": "Pr\u00e9f\u00e9rences de l'interface",
+  "Language": "Langue",
+  "M&isc": "Di&vers",
+  "M&odify": "&Modifier",
+  "Path settings": "Param\u00e8tres des chemins",
+  "Path Settings": "Param\u00e8tres des chemins",
+  "Pre&ferences...": "Pr\u00e9f\u00e9ren&ces...",
+  "VibeRadiant Preferences": "Pr\u00e9f\u00e9rences VibeRadiant",
+  "Vie&w": "&Affichage",
+  "_meta": {
+    "code": "fr",
+    "name": "French"
+  }
+}

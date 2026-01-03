@@ -29,6 +29,7 @@
 #include <QRadioButton>
 #include <QLineEdit>
 #include "gtkutil/image.h"
+#include "gtkutil/i18n.h"
 
 
 RadioHBox RadioHBox_new( StringArrayRange names ){
@@ -37,7 +38,7 @@ RadioHBox RadioHBox_new( StringArrayRange names ){
 
 	for ( size_t i = 0; i < names.size(); ++i )
 	{
-		auto *button = new QRadioButton( names[i] );
+		auto *button = new QRadioButton( i18n::tr( names[i] ) );
 		group->addButton( button, i ); // set ids 0+, default ones are negative
 		hbox->addWidget( button );
 	}
@@ -60,7 +61,7 @@ void DialogGrid_packRow( QGridLayout* grid, QWidget* row, QLabel *label ){
 }
 
 void DialogGrid_packRow( QGridLayout* grid, QWidget* row, const char* name ){
-	DialogGrid_packRow( grid, row, new QLabel( name ) );
+	DialogGrid_packRow( grid, row, new QLabel( i18n::tr( name ) ) );
 }
 
 void DialogGrid_packRow( QGridLayout* grid, QLayout* row, QLabel *label ){
@@ -70,5 +71,5 @@ void DialogGrid_packRow( QGridLayout* grid, QLayout* row, QLabel *label ){
 }
 
 void DialogGrid_packRow( QGridLayout* grid, QLayout* row, const char* name ){
-	DialogGrid_packRow( grid, row, new QLabel( name ) );
+	DialogGrid_packRow( grid, row, new QLabel( i18n::tr( name ) ) );
 }

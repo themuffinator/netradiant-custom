@@ -44,7 +44,7 @@ getlib "$MACLIBDIR"/pango/*/modules/pango-basic-x.so
 #cp -L "$MACLIBDIR"/../etc/gtk-2.0/gdk-pixbuf.loaders "$INSTALLDIR"
 #cp -L "$MACLIBDIR"/../etc/pango/pangorc "$INSTALLDIR"
 
-$CAT > "$INSTALLDIR/../netradiant.sh" <<EOF
+$CAT > "$INSTALLDIR/../viberadiant.sh" <<EOF
 #!/bin/sh
 
 MY_DIRECTORY="\${0%/*}" # cut off the script name
@@ -64,5 +64,4 @@ else
 fi
 EOF
 
-chmod 755 "$INSTALLDIR/../netradiant.sh"
-
+chmod 755 "$INSTALLDIR/../viberadiant.sh"

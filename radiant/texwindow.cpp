@@ -80,6 +80,7 @@
 #include "plugin.h"
 #include "gtkdlgs.h"
 #include "gtkmisc.h"
+#include "gtkutil/i18n.h"
 #include "mainframe.h"
 #include "findtexturedialog.h"
 #include "groupdialog.h"
@@ -1245,7 +1246,7 @@ void TextureBrowser_createTreeViewTree(){
 }
 
 static QMenu* TextureBrowser_constructViewMenu(){
-	auto *menu = new QMenu( "View" );
+	auto *menu = new QMenu( i18n::tr( "View" ) );
 
 	menu->setTearOffEnabled( g_Layout_enableDetachableMenus.m_value );
 
@@ -1288,7 +1289,7 @@ XmlTagBuilder TagBuilder;
 
 
 static QMenu* TextureBrowser_constructTagsMenu(){
-	auto *menu = new QMenu( "Tags" );
+	auto *menu = new QMenu( i18n::tr( "Tags" ) );
 
 	menu->setTearOffEnabled( g_Layout_enableDetachableMenus.m_value );
 
@@ -1630,7 +1631,7 @@ void TextureBrowser_ContextMenu( TextureBrowser& texBro, qreal deviceScale ){
 
 	menu->addSeparator();
 
-	auto *subMenu = menu->addMenu( "-> Recent" );
+	auto *subMenu = menu->addMenu( i18n::tr( "-> Recent" ) );
 	for( const auto& folder : texBro.m_recent_folders ){
 		subMenu->addAction( folder.c_str(), [&texBro, folder = folder.c_str()](){
 			ScopeDisableScreenUpdates disableScreenUpdates( folder, "Loading Textures" );

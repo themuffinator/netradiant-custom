@@ -33,6 +33,7 @@
 #include "renderable.h"
 #include "editable.h"
 #include "modelskin.h"
+#include "linkedgroups.h"
 
 #include "selectionlib.h"
 #include "instancelib.h"
@@ -76,6 +77,7 @@ class Doom3Group :
 {
 	EntityKeyValues m_entity;
 	KeyObserverMap m_keyObservers;
+	LinkedGroupsEntityObserver m_linkedGroupObserver;
 	TraversableNodeSet m_traverse;
 	MatrixTransform m_transform;
 
@@ -133,8 +135,10 @@ private:
 		attachTraverse();
 
 		m_entity.attach( m_keyObservers );
+		m_linkedGroupObserver.attach( m_entity );
 	}
 	void destroy(){
+		m_linkedGroupObserver.detach( m_entity );
 		m_entity.detach( m_keyObservers );
 
 		if ( isModel() ) {
@@ -253,6 +257,7 @@ public:
 public:
 	Doom3Group( EntityClass* eclass, scene::Node& node, const Callback<void()>& transformChanged, const Callback<void()>& boundsChanged, const Callback<void()>& evaluateTransform ) :
 		m_entity( eclass ),
+		m_linkedGroupObserver( node ),
 		m_originKey( OriginChangedCaller( *this ) ),
 		m_origin( ORIGINKEY_IDENTITY ),
 		m_rotationKey( RotationChangedCaller( *this ) ),
@@ -272,6 +277,7 @@ public:
 	}
 	Doom3Group( const Doom3Group& other, scene::Node& node, const Callback<void()>& transformChanged, const Callback<void()>& boundsChanged, const Callback<void()>& evaluateTransform ) :
 		m_entity( other.m_entity ),
+		m_linkedGroupObserver( node ),
 		m_originKey( OriginChangedCaller( *this ) ),
 		m_origin( ORIGINKEY_IDENTITY ),
 		m_rotationKey( RotationChangedCaller( *this ) ),
@@ -686,9 +692,11 @@ public:
 
 	void insert( scene::Node& child ) override {
 		m_instances.insert( child );
+		LinkedGroups_MarkGroupChanged( m_node );
 	}
 	void erase( scene::Node& child ) override {
 		m_instances.erase( child );
+		LinkedGroups_MarkGroupChanged( m_node );
 	}
 
 	scene::Instance* create( const scene::Path& path, scene::Instance* parent ) override {

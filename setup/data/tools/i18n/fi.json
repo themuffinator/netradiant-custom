@@ -1,0 +1,31 @@
+{
+  "&Build": "&Rakenna",
+  "&Curve": "&K\u00e4yr\u00e4",
+  "&Edit": "&Muokkaa",
+  "&File": "&Tiedosto",
+  "&Grid": "&Ruudukko",
+  "&Help": "&Ohje",
+  "&Plugins": "&Liit\u00e4nn\u00e4iset",
+  "Auto (System)": "Automaattinen (J\u00e4rjestelm\u00e4)",
+  "Brush": "Sivellin",
+  "Display Preferences": "N\u00e4ytt\u00f6asetukset",
+  "E&ntity": "&Entiteetti",
+  "E&xit": "&Lopeta",
+  "Engine Path Configuration": "Moottorin polun m\u00e4\u00e4ritys",
+  "Game Settings": "Pelin asetukset",
+  "General Settings": "Yleiset asetukset",
+  "Global Preferences": "Yleiset asetukset",
+  "Interface Preferences": "K\u00e4ytt\u00f6liittym\u00e4asetukset",
+  "Language": "Kieli",
+  "M&isc": "&Muut",
+  "M&odify": "&Muokkaa",
+  "Path settings": "Polkuasetukset",
+  "Path Settings": "Polkuasetukset",
+  "Pre&ferences...": "&Asetukset...",
+  "VibeRadiant Preferences": "VibeRadiant-asetukset",
+  "Vie&w": "&N\u00e4yt\u00e4",
+  "_meta": {
+    "code": "fi",
+    "name": "Finnish"
+  }
+}

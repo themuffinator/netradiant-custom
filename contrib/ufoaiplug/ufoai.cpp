@@ -61,7 +61,7 @@ QWidget* g_mainwnd;
 
 const char* init( void* hApp, void* pMainWidget ){
 	g_mainwnd = static_cast<QWidget*>( pMainWidget );
-	return "Initializing GTKRadiant UFOAI plugin";
+	return "Initializing VibeRadiant UFOAI plugin";
 }
 const char* getName(){
 	return "UFO:AI";
@@ -79,7 +79,7 @@ void dispatch( const char* command, float* vMin, float* vMax, bool bSingleBrush 
 		GlobalRadiant().m_pfnMessageBox( g_mainwnd,
 		                                 "UFO:AI Plugin (<a href='http://ufoai.sf.net'>http://ufoai.sf.net</a>)"
 										 "<br>Build: " __DATE__
-										 "<br>Radiant version: " RADIANT_VERSION
+										 "<br>VibeRadiant version: " RADIANT_VERSION
 										 "<br>Plugin version: " PLUGIN_VERSION
 										 "<br>Author: Martin Gerhardy (tlh2000/mattn)<br>",
 										 "About", EMessageBoxType::Info, 0 );

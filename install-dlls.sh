@@ -9,36 +9,56 @@ set -ex
 : ${MKDIR:=mkdir -p}
 : ${INSTALLDIR:=.}
 
-for DLL in \
-	freetype6.dll \
-	intl.dll \
-	libatk-1.0-0.dll \
-	libcairo-2.dll \
-	libexpat-1.dll \
-	libfontconfig-1.dll \
-	libgdkglext-win32-1.0-0.dll \
-	libgdk_pixbuf-2.0-0.dll \
-	libgdk-win32-2.0-0.dll \
-	libgio-2.0-0.dll \
-	libglib-2.0-0.dll \
-	libgmodule-2.0-0.dll \
-	libgobject-2.0-0.dll \
-	libgthread-2.0-0.dll \
-	libgtkglext-win32-1.0-0.dll \
-	libgtk-win32-2.0-0.dll \
-	libjpeg-8.dll \
-	libpango-1.0-0.dll \
-	libpangocairo-1.0-0.dll \
-	libpangoft2-1.0-0.dll \
-	libpangowin32-1.0-0.dll \
-	libpng14-14.dll \
-	libxml2-2.dll \
-	zlib1.dll \
-	libgcc_s_sjlj-1.dll \
-	libstdc++-6.dll \
-; do
-	$CP "`$WHICHDLL $DLL`" $INSTALLDIR/
-done
+copy_dll_required(){
+	for DLL in "$@"; do
+		DLL_PATH="`$WHICHDLL $DLL 2>/dev/null || true`"
+		if [ -n "$DLL_PATH" ] && [ -f "$DLL_PATH" ]; then
+			$CP "$DLL_PATH" "$INSTALLDIR/"
+			return 0
+		fi
+	done
+	echo "Warning: missing DLLs: $*" >&2
+	return 0
+}
+
+copy_dll_optional(){
+	for DLL in "$@"; do
+		DLL_PATH="`$WHICHDLL $DLL 2>/dev/null || true`"
+		if [ -n "$DLL_PATH" ] && [ -f "$DLL_PATH" ]; then
+			$CP "$DLL_PATH" "$INSTALLDIR/"
+			return 0
+		fi
+	done
+	return 0
+}
+
+copy_dll_required freetype6.dll libfreetype-6.dll
+copy_dll_required intl.dll libintl-8.dll libintl-9.dll
+copy_dll_required libexpat-1.dll
+copy_dll_required libfontconfig-1.dll
+copy_dll_required libgio-2.0-0.dll
+copy_dll_required libglib-2.0-0.dll
+copy_dll_required libgmodule-2.0-0.dll
+copy_dll_required libgobject-2.0-0.dll
+copy_dll_required libgthread-2.0-0.dll
+copy_dll_required libjpeg-8.dll libjpeg-62.dll
+copy_dll_required libpng14-14.dll libpng16-16.dll
+copy_dll_required libxml2-2.dll libxml2-16.dll
+copy_dll_required zlib1.dll
+copy_dll_required libgcc_s_sjlj-1.dll libgcc_s_seh-1.dll
+copy_dll_required libstdc++-6.dll
+
+copy_dll_optional libatk-1.0-0.dll
+copy_dll_optional libcairo-2.dll
+copy_dll_optional libgdkglext-win32-1.0-0.dll
+copy_dll_optional libgdk_pixbuf-2.0-0.dll
+copy_dll_optional libgdk-win32-2.0-0.dll
+copy_dll_optional libgtkglext-win32-1.0-0.dll
+copy_dll_optional libgtk-win32-2.0-0.dll
+copy_dll_optional libpango-1.0-0.dll
+copy_dll_optional libpangocairo-1.0-0.dll
+copy_dll_optional libpangoft2-1.0-0.dll
+copy_dll_optional libpangowin32-1.0-0.dll
 
 $MKDIR $INSTALLDIR/etc/fonts
 $CAT > $INSTALLDIR/etc/fonts/fonts.conf <<EOF

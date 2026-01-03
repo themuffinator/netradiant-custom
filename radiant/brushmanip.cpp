@@ -24,6 +24,7 @@
 
 #include "gtkutil/widget.h"
 #include "gtkmisc.h"
+#include "gtkutil/i18n.h"
 #include "brushnode.h"
 #include "map.h"
 #include "texwindow.h"
@@ -1502,7 +1503,7 @@ void Brush_constructMenu( QMenu* menu ){
 	create_menu_item_with_mnemonic( menu, "Icosahedron...", "BrushIcosahedron" );
 	menu->addSeparator();
 	{
-		QMenu* submenu = menu->addMenu( "CSG" );
+		QMenu* submenu = menu->addMenu( i18n::tr( "CSG" ) );
 
 		submenu->setTearOffEnabled( g_Layout_enableDetachableMenus.m_value );
 
@@ -1515,7 +1516,7 @@ void Brush_constructMenu( QMenu* menu ){
 	}
 	menu->addSeparator();
 	{
-		QMenu* submenu = menu->addMenu( "Clipper" );
+		QMenu* submenu = menu->addMenu( i18n::tr( "Clipper" ) );
 
 		submenu->setTearOffEnabled( g_Layout_enableDetachableMenus.m_value );
 

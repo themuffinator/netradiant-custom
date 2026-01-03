@@ -1,0 +1,31 @@
+{
+  "&Build": "&Sestavit",
+  "&Curve": "&K\u0159ivka",
+  "&Edit": "&Upravit",
+  "&File": "&Soubor",
+  "&Grid": "&M\u0159\u00ed\u017eka",
+  "&Help": "&N\u00e1pov\u011bda",
+  "&Plugins": "&Pluginy",
+  "Auto (System)": "Automaticky (Syst\u00e9m)",
+  "Brush": "\u0160t\u011btec",
+  "Display Preferences": "Nastaven\u00ed zobrazen\u00ed",
+  "E&ntity": "&Entita",
+  "E&xit": "&Konec",
+  "Engine Path Configuration": "Konfigurace cesty enginu",
+  "Game Settings": "Nastaven\u00ed hry",
+  "General Settings": "Obecn\u00e1 nastaven\u00ed",
+  "Global Preferences": "Glob\u00e1ln\u00ed p\u0159edvolby",
+  "Interface Preferences": "Nastaven\u00ed rozhran\u00ed",
+  "Language": "Jazyk",
+  "M&isc": "&R\u016fzn\u00e9",
+  "M&odify": "&Upravit",
+  "Path settings": "Nastaven\u00ed cest",
+  "Path Settings": "Nastaven\u00ed cest",
+  "Pre&ferences...": "&P\u0159edvolby...",
+  "VibeRadiant Preferences": "P\u0159edvolby VibeRadiant",
+  "Vie&w": "&Zobrazen\u00ed",
+  "_meta": {
+    "code": "cs",
+    "name": "Czech"
+  }
+}

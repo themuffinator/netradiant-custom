@@ -1,14 +1,14 @@
 
-NetRadiant-custom Build Instructions
+VibeRadiant Build Instructions
 ====================================
 
-This document covers building NetRadiant-custom from source using the
+This document covers building VibeRadiant from source using the
 top-level Makefile. The default build outputs are staged under ./install.
 
 Getting the source
 ------------------
-git clone https://github.com/themuffinator/netradiant-custom.git
-cd netradiant-custom
+git clone https://github.com/themuffinator/VibeRadiant.git
+cd VibeRadiant
 
 Build system overview
 ---------------------
@@ -89,13 +89,13 @@ Windows (MSYS2)
    Developer-style build example:
      make MAKEFILE_CONF=msys2-Makefile.conf DEPENDENCIES_CHECK=off \
          DOWNLOAD_GAMEPACKS=no INSTALL_DLLS=no BUILD=debug \
-         RADIANT_ABOUTMSG="NetRadiant custom dev build" -j$(nproc)
+         RADIANT_ABOUTMSG="VibeRadiant dev build" -j$(nproc)
 5) Run:
      .\install\radiant.exe
 
 macOS (X11/XQuartz)
 -------------------
-NetRadiant-custom relies on X11. The setup/apple directory includes
+VibeRadiant relies on X11. The setup/apple directory includes
 packaging notes and a Makefile for building a .app bundle.
 
 1) Install Xcode command line tools.

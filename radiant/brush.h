@@ -62,6 +62,12 @@
 #include "winding.h"
 #include "brush_primit.h"
 
+namespace scene
+{
+class Node;
+}
+void LinkedGroups_MarkNodeChanged( scene::Node& node );
+
 const unsigned int BRUSH_DETAIL_FLAG = 27;
 const unsigned int BRUSH_DETAIL_MASK = ( 1 << BRUSH_DETAIL_FLAG );
 
@@ -1778,6 +1784,9 @@ public:
 			m_planeChanged = true;
 			aabbChanged();
 			m_lightsChanged();
+			if ( m_node != 0 ) {
+				LinkedGroups_MarkNodeChanged( *m_node );
+			}
 		}
 	}
 	void shaderChanged() override {
@@ -3679,7 +3688,7 @@ public:
 		}
 	}
 	void testSelectComponents( Selector& selector, SelectionTest& test, SelectionSystem::EComponentMode mode ) override {
-		test.BeginMesh( localToWorld() );
+		test.BeginMesh( localToWorld(), mode == SelectionSystem::eFace );
 
 		switch ( mode )
 		{

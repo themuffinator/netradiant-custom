@@ -1,0 +1,31 @@
+{
+  "&Build": "&Build",
+  "&Curve": "&Curve",
+  "&Edit": "&Edit",
+  "&File": "&File",
+  "&Grid": "&Grid",
+  "&Help": "&Help",
+  "&Plugins": "&Plugins",
+  "Auto (System)": "Auto (System)",
+  "Brush": "Brush",
+  "Display Preferences": "Display Preferences",
+  "E&ntity": "E&ntity",
+  "E&xit": "E&xit",
+  "Engine Path Configuration": "Engine Path Configuration",
+  "Game Settings": "Game Settings",
+  "General Settings": "General Settings",
+  "Global Preferences": "Global Preferences",
+  "Interface Preferences": "Interface Preferences",
+  "Language": "Language",
+  "M&isc": "M&isc",
+  "M&odify": "M&odify",
+  "Path settings": "Path settings",
+  "Path Settings": "Path Settings",
+  "Pre&ferences...": "Pre&ferences...",
+  "VibeRadiant Preferences": "VibeRadiant Preferences",
+  "Vie&w": "Vie&w",
+  "_meta": {
+    "code": "en",
+    "name": "English"
+  }
+}
