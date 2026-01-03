@@ -2282,8 +2282,10 @@ void map_autocaulk_selected(){
 			const char* num = tokeniser.getToken();
 			if( !num )
 				break;
-			std::size_t n;
-			string_parse_size( num, n );
+			std::size_t n = 0;
+			if ( !string_parse_size( num, n ) ) {
+				continue;
+			}
 
 			const char* faces = tokeniser.getToken();
 			if( !faces )

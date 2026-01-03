@@ -98,6 +98,7 @@
 #include "pluginmenu.h"
 #include "plugintoolbar.h"
 #include "preferences.h"
+#include "update.h"
 #include "qe3.h"
 #include "qgl.h"
 #include "select.h"
@@ -105,11 +106,15 @@
 #include "server.h"
 #include "surfacedialog.h"
 #include "textures.h"
+#include "assetbrowser.h"
+#include "entitybrowser.h"
 #include "texwindow.h"
 #include "modelwindow.h"
 #include "layerswindow.h"
+#include "soundbrowser.h"
 #include "url.h"
 #include "xywindow.h"
+#include "zwindow.h"
 #include "windowobservers.h"
 #include "renderstate.h"
 #include "feedback.h"
@@ -182,7 +187,14 @@ void HomePaths_Realise(){
 			wchar_t *mydocsdirw;
 			HMODULE shfolder = LoadLibrary( "shfolder.dll" );
 			if ( shfolder ) {
-				qSHGetKnownFolderPath = (qSHGetKnownFolderPath_t *) GetProcAddress( shfolder, "SHGetKnownFolderPath" );
+#if defined( __GNUC__ )
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-function-type"
+#endif
+				qSHGetKnownFolderPath = reinterpret_cast<qSHGetKnownFolderPath_t *>( GetProcAddress( shfolder, "SHGetKnownFolderPath" ) );
+#if defined( __GNUC__ )
+#pragma GCC diagnostic pop
+#endif
 			}
 			else{
 				qSHGetKnownFolderPath = nullptr;
@@ -671,22 +683,7 @@ void Restart(){
 
 
 void OpenUpdateURL(){
-	OpenURL( "https://github.com/Garux/VibeRadiant/releases/latest" );
-#if 0
-	// build the URL
-	StringOutputStream URL( 256 );
-	URL << "http://www.icculus.org/netradiant/?cmd=update&data=dlupdate&query_dlup=1";
-#ifdef WIN32
-	URL << "&OS_dlup=1";
-#elif defined( __APPLE__ )
-	URL << "&OS_dlup=2";
-#else
-	URL << "&OS_dlup=3";
-#endif
-	URL << "&Version_dlup=" RADIANT_VERSION;
-	g_GamesDialog.AddPacksURL( URL );
-	OpenURL( URL );
-#endif
+	UpdateManager_CheckForUpdates( UpdateCheckMode::Manual );
 }
 
 // open the Q3Rad manual
@@ -851,6 +848,9 @@ void XY_UpdateAllWindows(){
 		g_pParentWnd->forEachXYWnd( []( XYWnd* xywnd ){
 			XYWnd_Update( *xywnd );
 		} );
+		if ( ZWnd* zwnd = g_pParentWnd->GetZWnd() ) {
+			zwnd->queueDraw();
+		}
 	}
 }
 
@@ -1709,7 +1709,7 @@ void MainFrame::Create(){
 
 	if ( FloatingGroupDialog() ) {
 		g_page_console = GroupDialog_addPage( "Console", Console_constructWindow(), RawStringExportCaller( "Console" ) );
-		g_page_textures = GroupDialog_addPage( "Textures", TextureBrowser_constructWindow( GroupDialog_getWindow() ), TextureBrowserExportTitleCaller() );
+		g_page_textures = GroupDialog_addPage( "Textures", AssetBrowser_constructWindow( GroupDialog_getWindow() ), TextureBrowserExportTitleCaller() );
 	}
 
 	g_page_models = GroupDialog_addPage( "Models", ModelBrowser_constructWindow( GroupDialog_getWindow() ), RawStringExportCaller( "Models" ) );
@@ -1734,10 +1734,16 @@ void MainFrame::Create(){
 			// console
 			m_vSplit->addWidget( Console_constructWindow() );
 
-			// xy
+			// xy + z
 			m_pXYWnd = new XYWnd();
 			m_pXYWnd->SetViewType( XY );
-			m_vSplit->insertWidget( 0, m_pXYWnd->GetWidget() );
+			m_pZWnd = new ZWnd();
+			m_xySplit = new QSplitter( Qt::Horizontal );
+			m_xySplit->addWidget( m_pZWnd->GetWidget() );
+			m_xySplit->addWidget( m_pXYWnd->GetWidget() );
+			m_xySplit->setStretchFactor( 0, 0 );
+			m_xySplit->setStretchFactor( 1, 1 );
+			m_vSplit->insertWidget( 0, m_xySplit );
 			{
 				// camera
 				m_pCamWnd = NewCamWnd();
@@ -1747,9 +1753,9 @@ void MainFrame::Create(){
 
 				// textures
 				if( g_Layout_builtInGroupDialog.m_value )
-					g_page_textures = GroupDialog_addPage( "Textures", TextureBrowser_constructWindow( GroupDialog_getWindow() ), TextureBrowserExportTitleCaller() );
+					g_page_textures = GroupDialog_addPage( "Textures", AssetBrowser_constructWindow( GroupDialog_getWindow() ), TextureBrowserExportTitleCaller() );
 				else
-					m_vSplit2->addWidget( TextureBrowser_constructWindow( window ) );
+					m_vSplit2->addWidget( AssetBrowser_constructWindow( window ) );
 			}
 		}
 	}
@@ -1781,11 +1787,17 @@ void MainFrame::Create(){
 			m_pXYWnd = new XYWnd();
 			m_pXYWnd->m_parent = window;
 			m_pXYWnd->SetViewType( XY );
+			m_pZWnd = new ZWnd();
+			m_xySplit = new QSplitter( Qt::Horizontal );
+			m_xySplit->addWidget( m_pZWnd->GetWidget() );
+			m_xySplit->addWidget( m_pXYWnd->GetWidget() );
+			m_xySplit->setStretchFactor( 0, 0 );
+			m_xySplit->setStretchFactor( 1, 1 );
 
 			{
 				auto *box = new QHBoxLayout( window );
 				box->setContentsMargins( 1, 1, 1, 1 );
-				box->addWidget( m_pXYWnd->GetWidget() );
+				box->addWidget( m_xySplit );
 			}
 
 			GlobalWindowObservers_connectTopLevel( window );
@@ -1849,8 +1861,13 @@ void MainFrame::Create(){
 
 		m_pXYWnd = new XYWnd();
 		m_pXYWnd->SetViewType( XY );
-
-		m_vSplit2->addWidget( m_pXYWnd->GetWidget() );
+		m_pZWnd = new ZWnd();
+		m_xySplit = new QSplitter( Qt::Horizontal );
+		m_xySplit->addWidget( m_pZWnd->GetWidget() );
+		m_xySplit->addWidget( m_pXYWnd->GetWidget() );
+		m_xySplit->setStretchFactor( 0, 0 );
+		m_xySplit->setStretchFactor( 1, 1 );
+		m_vSplit2->addWidget( m_xySplit );
 
 		m_pXZWnd = new XYWnd();
 		m_pXZWnd->SetViewType( XZ );
@@ -1883,6 +1900,8 @@ void MainFrame::Create(){
 	toolbar_importState( g_toolbarHiddenButtons.c_str() );
 	RestoreGuiState();
 
+	UpdateManager_MaybeAutoCheck();
+
 	//GlobalShortcuts_reportUnregistered();
 }
 
@@ -1900,7 +1919,13 @@ void MainFrame::RestoreGuiState(){
 	if( !FloatingGroupDialog() && m_hSplit != nullptr && m_vSplit != nullptr && m_vSplit2 != nullptr ){
 		g_guiSettings.addSplitter( m_hSplit, "MainFrame/m_hSplit", { 384, 576 } );
 		g_guiSettings.addSplitter( m_vSplit, "MainFrame/m_vSplit", { 377, 20 } );
+		if ( m_xySplit != nullptr ) {
+			g_guiSettings.addSplitter( m_xySplit, "MainFrame/m_xySplit", { 64, 500 } );
+		}
 		g_guiSettings.addSplitter( m_vSplit2, "MainFrame/m_vSplit2", { 250, 150 } );
+	}
+	if ( CurrentStyle() == eFloating && m_xySplit != nullptr ) {
+		g_guiSettings.addSplitter( m_xySplit, "floating/xySplit", { 64, 500 } );
 	}
 }
 
@@ -1910,12 +1935,16 @@ void MainFrame::Shutdown(){
 	EntityList_destroyWindow();
 
 	delete std::exchange( m_pXYWnd, nullptr );
+	delete std::exchange( m_pZWnd, nullptr );
 	delete std::exchange( m_pYZWnd, nullptr );
 	delete std::exchange( m_pXZWnd, nullptr );
 
 	ModelBrowser_destroyWindow();
 	LayersBrowser_destroyWindow();
+	SoundBrowser_destroyWindow();
+	EntityBrowser_destroyWindow();
 	TextureBrowser_destroyWindow();
+	AssetBrowser_destroyWindow();
 
 	DeleteCamWnd( m_pCamWnd );
 	m_pCamWnd = 0;

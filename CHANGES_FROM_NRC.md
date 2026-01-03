@@ -7,14 +7,30 @@ documentation in this repository. If you need a full, audited diff against NRC, 
 
 Sources used:
 - `README.md`
+- `RELEASING.md`
 - `docs/changelog-custom.txt`
 - `docs/Additional_map_editor_features.htm`
 - `docs/Additional_map_compiler_features.htm`
+- `docs/auto-updater.md`
 - `docs/fsr_readme.txt`
 
 ## Local changes (this repo)
 
+- Entities: added a "Drop Entities to Floor" command to drop selected point entities onto brush geometry.
+- Filters: idTech2 brush filtering now honors surface/content flags for clip, hint/skip, liquids, sky, translucent, and areaportals.
 - Linked Duplicates: ported TrenchBroom-style linked group duplication and syncing (create/select/separate, transformation tracking, and linked group update propagation).
+- Z-bar view: added the GtkRadiant-style vertical Z ruler alongside the 2D XY view.
+- Z-bar view: completed GtkRadiant parity for mouse-driven selection/texture edits, Z-constrained drags, and resize minimum sizing.
+- Build fixes: exported linked group module access for plugins, adjusted Qt mouse event handling for Qt5, and cleaned up a build warning in `libs/gtkutil/image.cpp`.
+- Texture browser: refreshed layout with a unified filter bar, name search, and surface/content flag filtering.
+- Camera view: added a real-time lighting preview mode using point lights, surface lights, and sky/worldspawn sun keys to approximate map lighting.
+- Gamepack model types: added `md5mesh` and `iqm` to explicit `modeltypes` lists so MD5/IQM models are available in the editor for non-wildcard game configs.
+- Releases/updates: added a `VERSION` file, release packaging workflow with update manifest generation, and an in-app auto-updater that checks GitHub releases and installs updates (Windows zip, Linux AppImage).
+- Documentation: added `RELEASING.md` for versioning/packaging/release details and `docs/auto-updater.md` for user-facing update instructions.
+- Clipper tool: added a visual style option (GTK/NRC/VIBE) for clipped volume previewing, including a VIBE mode with a red dashed cut line and striped fill.
+- Asset browser: added entity and sound browser tabs alongside textures, with drag-and-drop into 2D/3D views to create entities or assign `noise`/`target_speaker` sounds.
+- Branding: replaced the splash screen artwork with a new 1536x1024 `splash.png`.
+- Documentation/branding: refreshed `README.md` with a new `docs/viberadiant-banner.png` social banner and updated project overview/links.
 
 ## Map editor changes (documented)
 

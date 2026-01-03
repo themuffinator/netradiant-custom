@@ -245,6 +245,9 @@ inline void XYWnd_Update( XYWnd& xywnd ){
 }
 
 void XY_Centralize();
+bool XYWnd_showGrid();
+bool XYWnd_showCoordinates();
+int XYWnd_getMSAA();
 
 struct xywindow_globals_t
 {

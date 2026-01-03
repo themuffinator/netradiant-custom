@@ -1021,9 +1021,35 @@ public:
 	filter_face_contents( int contents ) : m_contents( contents ){
 	}
 	bool filter( const Face& face ) const override {
-		return ( face.getShader().m_flags.m_contentFlags & m_contents ) != 0;
+		return ( face.getShader().getFlags().m_contentFlags & m_contents ) != 0;
 	}
 };
+
+class filter_face_surface : public FaceFilter
+{
+	int m_flags;
+public:
+	filter_face_surface( int flags ) : m_flags( flags ){
+	}
+	bool filter( const Face& face ) const override {
+		return ( face.getShader().getFlags().m_surfaceFlags & m_flags ) != 0;
+	}
+};
+
+
+const int Q2_SURF_SKY = 0x00000004;
+const int Q2_SURF_TRANS33 = 0x00000010;
+const int Q2_SURF_TRANS66 = 0x00000020;
+const int Q2_SURF_HINT = 0x00000100;
+const int Q2_SURF_SKIP = 0x00000200;
+
+const int Q2_CONTENTS_LAVA = 0x00000008;
+const int Q2_CONTENTS_SLIME = 0x00000010;
+const int Q2_CONTENTS_WATER = 0x00000020;
+const int Q2_CONTENTS_MIST = 0x00000040;
+const int Q2_CONTENTS_AREAPORTAL = 0x00008000;
+const int Q2_CONTENTS_PLAYERCLIP = 0x00010000;
+const int Q2_CONTENTS_MONSTERCLIP = 0x00020000;
 
 
 
@@ -1082,6 +1108,9 @@ filter_brush_all_faces g_filter_brush_clip( &g_filter_face_clip );
 filter_face_shader g_filter_face_clip_q2( "textures/clip" );
 filter_brush_all_faces g_filter_brush_clip_q2( &g_filter_face_clip_q2 );
 
+filter_face_contents g_filter_face_clip_q2_flags( Q2_CONTENTS_PLAYERCLIP | Q2_CONTENTS_MONSTERCLIP );
+filter_brush_all_faces g_filter_brush_clip_q2_flags( &g_filter_face_clip_q2_flags );
+
 filter_face_shader g_filter_face_weapclip( "textures/common/weapclip" );
 filter_brush_all_faces g_filter_brush_weapclip( &g_filter_face_weapclip );
 
@@ -1112,6 +1141,9 @@ filter_brush_any_face g_filter_brush_liquids( &g_filter_face_liquids );
 filter_face_shader_prefix g_filter_face_liquidsdir( "textures/liquids/" );
 filter_brush_any_face g_filter_brush_liquidsdir( &g_filter_face_liquidsdir );
 
+filter_face_contents g_filter_face_liquids_q2_flags( Q2_CONTENTS_WATER | Q2_CONTENTS_SLIME | Q2_CONTENTS_LAVA | Q2_CONTENTS_MIST );
+filter_brush_any_face g_filter_brush_liquids_q2_flags( &g_filter_face_liquids_q2_flags );
+
 filter_face_shader_prefix g_filter_face_liquids_q1( "textures/*" ); // textures/*04water1
 filter_brush_any_face g_filter_brush_liquids_q1( &g_filter_face_liquids_q1 );
 
@@ -1124,11 +1156,17 @@ filter_brush_any_face g_filter_brush_hintlocal( &g_filter_face_hintlocal );
 filter_face_shader g_filter_face_hint_q2( "textures/hint" );
 filter_brush_any_face g_filter_brush_hint_q2( &g_filter_face_hint_q2 );
 
+filter_face_surface g_filter_face_hint_q2_flags( Q2_SURF_HINT | Q2_SURF_SKIP );
+filter_brush_any_face g_filter_brush_hint_q2_flags( &g_filter_face_hint_q2_flags );
+
 filter_face_shader g_filter_face_hint_ja( "textures/system/hint" );
 filter_brush_any_face g_filter_brush_hint_ja( &g_filter_face_hint_ja );
 
 filter_face_shader g_filter_face_areaportal( "textures/common/areaportal" );
 filter_brush_any_face g_filter_brush_areaportal( &g_filter_face_areaportal );
+
+filter_face_contents g_filter_face_areaportal_q2_flags( Q2_CONTENTS_AREAPORTAL );
+filter_brush_any_face g_filter_brush_areaportal_q2_flags( &g_filter_face_areaportal_q2_flags );
 
 filter_face_shader g_filter_face_visportal( "textures/editor/visportal" );
 filter_brush_any_face g_filter_brush_visportal( &g_filter_face_visportal );
@@ -1142,6 +1180,9 @@ filter_brush_all_faces g_filter_brush_lightgrid( &g_filter_face_lightgrid );
 filter_face_flags g_filter_face_translucent( QER_TRANS | QER_ALPHATEST );
 filter_brush_any_face g_filter_brush_translucent( &g_filter_face_translucent );
 
+filter_face_surface g_filter_face_translucent_q2_flags( Q2_SURF_TRANS33 | Q2_SURF_TRANS66 );
+filter_brush_any_face g_filter_brush_translucent_q2_flags( &g_filter_face_translucent_q2_flags );
+
 filter_face_contents g_filter_face_detail( BRUSH_DETAIL_MASK );
 filter_brush_all_faces g_filter_brush_detail( &g_filter_face_detail );
 
@@ -1151,13 +1192,21 @@ filter_brush_any_face g_filter_brush_decals( &g_filter_face_decals );
 filter_face_flags g_filter_face_sky( QER_SKY );
 filter_brush_any_face g_filter_brush_sky( &g_filter_face_sky );
 
+filter_face_surface g_filter_face_sky_q2_flags( Q2_SURF_SKY );
+filter_brush_any_face g_filter_brush_sky_q2_flags( &g_filter_face_sky_q2_flags );
+
 
 void BrushFilters_construct(){
+	const bool isQuake2 = string_equal( GlobalRadiant().getRequiredGameDescriptionKeyValue( "brushtypes" ), "quake2" );
+
 	add_brush_filter( g_filter_brush_clip, EXCLUDE_CLIP );
 	add_brush_filter( g_filter_brush_clip_q2, EXCLUDE_CLIP );
 	add_brush_filter( g_filter_brush_weapclip, EXCLUDE_CLIP );
 	add_brush_filter( g_filter_brush_fullclip, EXCLUDE_CLIP );
 	add_brush_filter( g_filter_brush_commonclip, EXCLUDE_CLIP );
+	if ( isQuake2 ) {
+		add_brush_filter( g_filter_brush_clip_q2_flags, EXCLUDE_CLIP );
+	}
 	add_brush_filter( g_filter_brush_botclip, EXCLUDE_BOTCLIP );
 	add_brush_filter( g_filter_brush_donotenter, EXCLUDE_BOTCLIP );
 	add_brush_filter( g_filter_brush_caulk, EXCLUDE_CAULK );
@@ -1166,14 +1215,26 @@ void BrushFilters_construct(){
 	add_face_filter( g_filter_face_caulk_ja, EXCLUDE_CAULK );
 	add_brush_filter( g_filter_brush_liquids, EXCLUDE_LIQUIDS );
 	add_brush_filter( g_filter_brush_liquidsdir, EXCLUDE_LIQUIDS );
+	if ( isQuake2 ) {
+		add_brush_filter( g_filter_brush_liquids_q2_flags, EXCLUDE_LIQUIDS );
+	}
 	add_brush_filter( g_filter_brush_hint, EXCLUDE_HINTSSKIPS );
 	add_brush_filter( g_filter_brush_hintlocal, EXCLUDE_HINTSSKIPS );
 	add_brush_filter( g_filter_brush_hint_q2, EXCLUDE_HINTSSKIPS );
+	if ( isQuake2 ) {
+		add_brush_filter( g_filter_brush_hint_q2_flags, EXCLUDE_HINTSSKIPS );
+	}
 	add_brush_filter( g_filter_brush_hint_ja, EXCLUDE_HINTSSKIPS );
 	add_brush_filter( g_filter_brush_clusterportal, EXCLUDE_CLUSTERPORTALS );
 	add_brush_filter( g_filter_brush_visportal, EXCLUDE_VISPORTALS );
 	add_brush_filter( g_filter_brush_areaportal, EXCLUDE_AREAPORTALS );
+	if ( isQuake2 ) {
+		add_brush_filter( g_filter_brush_areaportal_q2_flags, EXCLUDE_AREAPORTALS );
+	}
 	add_brush_filter( g_filter_brush_translucent, EXCLUDE_TRANSLUCENT );
+	if ( isQuake2 ) {
+		add_brush_filter( g_filter_brush_translucent_q2_flags, EXCLUDE_TRANSLUCENT );
+	}
 	if( !string_equal( GlobalRadiant().getRequiredGameDescriptionKeyValue( "brushtypes" ), "quake" ) ){ /* conditional for entity based structural/detail filters; see entity plugin */
 		add_brush_filter( g_filter_brush_detail, EXCLUDE_DETAILS );
 		add_brush_filter( g_filter_brush_detail, EXCLUDE_STRUCTURAL, true );
@@ -1186,6 +1247,9 @@ void BrushFilters_construct(){
 	add_brush_filter( g_filter_brush_lightgrid, EXCLUDE_LIGHTGRID );
 	add_brush_filter( g_filter_brush_decals, EXCLUDE_DECALS );
 	add_brush_filter( g_filter_brush_sky, EXCLUDE_SKY );
+	if ( isQuake2 ) {
+		add_brush_filter( g_filter_brush_sky_q2_flags, EXCLUDE_SKY );
+	}
 }
 
 #if 0

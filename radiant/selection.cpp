@@ -8743,7 +8743,8 @@ SelectionSystemWindowObserver* NewWindowObserver(){
 class SelectionDependencies :
 	public GlobalSceneGraphModuleRef,
 	public GlobalShaderCacheModuleRef,
-	public GlobalOpenGLModuleRef
+	public GlobalOpenGLModuleRef,
+	public GlobalLinkedGroupsModuleRef
 {
 };
 

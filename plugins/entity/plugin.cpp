@@ -32,6 +32,7 @@
 #include "igl.h"
 #include "ireference.h"
 #include "ifilter.h"
+#include "linkedgroups.h"
 #include "preferencesystem.h"
 #include "qerplugin.h"
 #include "namespace.h"
@@ -51,6 +52,7 @@ class EntityDependencies :
 	public GlobalSceneGraphModuleRef,
 	public GlobalShaderCacheModuleRef,
 	public GlobalSelectionModuleRef,
+	public GlobalLinkedGroupsModuleRef,
 	public GlobalReferenceModuleRef,
 	public GlobalFilterModuleRef,
 	public GlobalPreferenceSystemModuleRef,

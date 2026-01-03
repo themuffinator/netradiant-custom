@@ -26,6 +26,7 @@
 #include "preferences.h"
 #include "preferencesystem.h"
 #include "stream/stringstream.h"
+#include "stringio.h"
 
 #include <QFile>
 #include <QJsonDocument>

@@ -13,8 +13,8 @@
 #include "stream/stringstream.h"
 #include "string/string.h"
 #include "stringio.h"
+#include "preferences.h"
 #include "../plugins/entity/origin.h"
-#include "../plugins/entity/angles.h"
 #include "../plugins/entity/rotation.h"
 
 #include <algorithm>
@@ -29,6 +29,100 @@ namespace
 {
 const char kLinkedGroupIdKey[] = "_tb_linked_group_id";
 const char kLinkedGroupTransformKey[] = "_tb_transformation";
+
+const Vector3 kAnglesIdentity( 0, 0, 0 );
+
+bool use_quake1_angles_bug(){
+	return g_pGameDescription != nullptr && g_pGameDescription->mGameType == "q1";
+}
+
+void normalise_angles( Vector3& angles ){
+	angles[0] = float_mod( angles[0], 360 );
+	angles[1] = float_mod( angles[1], 360 );
+	angles[2] = float_mod( angles[2], 360 );
+}
+
+void default_angles( Vector3& angles ){
+	angles = kAnglesIdentity;
+}
+
+void read_angle( Vector3& angles, const char* value ){
+	if ( !string_parse_float( value, angles[2] ) ) {
+		default_angles( angles );
+	}
+	else
+	{
+		angles[0] = 0;
+		angles[1] = 0;
+		normalise_angles( angles );
+	}
+}
+
+void read_group_angle( Vector3& angles, const char* value ){
+	if( string_equal( value, "-1" ) ) {
+		angles = Vector3( 0, -90, 0 );
+	}
+	else if( string_equal( value, "-2" ) ) {
+		angles = Vector3( 0, 90, 0 );
+	}
+	else {
+		read_angle( angles, value );
+	}
+}
+
+void read_angles( Vector3& angles, const char* value ){
+	if ( !string_parse_vector3( value, angles ) ) {
+		default_angles( angles );
+	}
+	else
+	{
+		const bool quake1Bug = use_quake1_angles_bug();
+		angles = Vector3( angles[2], quake1Bug ? -angles[0] : angles[0], angles[1] );
+		normalise_angles( angles );
+	}
+}
+
+void write_angle_value( float angle, Entity* entity ){
+	if ( angle == 0 ) {
+		entity->setKeyValue( "angle", "" );
+	}
+	else
+	{
+		const auto value = StringStream<64>( angle );
+		entity->setKeyValue( "angle", value );
+	}
+}
+
+void write_angles( const Vector3& angles, Entity* entity ){
+	if ( angles == kAnglesIdentity ) {
+		entity->setKeyValue( "angle", "" );
+		entity->setKeyValue( "angles", "" );
+	}
+	else if ( angles[0] == 0 && angles[1] == 0 ) {
+		entity->setKeyValue( "angles", "" );
+		write_angle_value( angles[2], entity );
+	}
+	else
+	{
+		const bool quake1Bug = use_quake1_angles_bug();
+		const auto value = StringStream<64>( quake1Bug ? -angles[1] : angles[1], ' ', angles[2], ' ', angles[0] );
+		entity->setKeyValue( "angle", "" );
+		entity->setKeyValue( "angles", value );
+	}
+}
+
+Matrix4 matrix4_rotation_for_euler_xyz_degrees_quantised( const Vector3& angles ){
+	if ( angles[0] == 0 && angles[1] == 0 ) {
+		return matrix4_rotation_for_z_degrees( angles[2] );
+	}
+	if ( angles[0] == 0 && angles[2] == 0 ) {
+		return matrix4_rotation_for_y_degrees( angles[1] );
+	}
+	if ( angles[1] == 0 && angles[2] == 0 ) {
+		return matrix4_rotation_for_x_degrees( angles[0] );
+	}
+	return matrix4_rotation_for_euler_xyz_degrees( angles );
+}
 
 bool matrix4_affine_inverse_safe( const Matrix4& matrix, Matrix4& inverse ){
 	const double det =
@@ -109,7 +203,7 @@ void write_transform( Entity& entity, const Matrix4& transform ){
 		return;
 	}
 
-	StringStream<256> stream;
+	StringOutputStream stream( 256 );
 	stream << transform.xx() << ' ' << transform.yx() << ' ' << transform.zx() << ' ' << transform.tx() << ' '
 	       << transform.xy() << ' ' << transform.yy() << ' ' << transform.zy() << ' ' << transform.ty() << ' '
 	       << transform.xz() << ' ' << transform.yz() << ' ' << transform.zz() << ' ' << transform.tz() << ' '
@@ -484,7 +578,7 @@ std::unordered_map<scene::Node*, Matrix4> g_transformStart;
 }
 
 
-void LinkedGroups_OnCommandStart(){
+static void LinkedGroups_OnCommandStart_impl(){
 	if ( g_commandActive ) {
 		return;
 	}
@@ -492,7 +586,7 @@ void LinkedGroups_OnCommandStart(){
 	g_dirtyGroups.clear();
 }
 
-void LinkedGroups_OnCommandFinish(){
+static void LinkedGroups_OnCommandFinish_impl(){
 	if ( !g_commandActive ) {
 		return;
 	}
@@ -554,7 +648,9 @@ void LinkedGroups_OnCommandFinish(){
 	g_commandActive = false;
 }
 
-void LinkedGroups_MarkNodeChanged( scene::Node& node ){
+static void LinkedGroups_MarkGroupChanged_impl( scene::Node& node );
+
+static void LinkedGroups_MarkNodeChanged_impl( scene::Node& node ){
 	if ( !g_commandActive || g_updating ) {
 		return;
 	}
@@ -576,7 +672,7 @@ void LinkedGroups_MarkNodeChanged( scene::Node& node ){
 			{
 				scene::Node& current = path[i].get();
 				if ( node_is_group( current ) ) {
-					LinkedGroups_MarkGroupChanged( current );
+					LinkedGroups_MarkGroupChanged_impl( current );
 					break;
 				}
 			}
@@ -586,7 +682,7 @@ void LinkedGroups_MarkNodeChanged( scene::Node& node ){
 	instantiable->forEachInstance( GroupFromInstance() );
 }
 
-void LinkedGroups_MarkGroupChanged( scene::Node& node ){
+static void LinkedGroups_MarkGroupChanged_impl( scene::Node& node ){
 	if ( !g_commandActive || g_updating ) {
 		return;
 	}
@@ -599,7 +695,7 @@ void LinkedGroups_MarkGroupChanged( scene::Node& node ){
 	g_dirtyGroups.insert( &node );
 }
 
-void LinkedGroups_BeginTransform( const std::vector<scene::Node*>& groups ){
+static void LinkedGroups_BeginTransform_impl( const std::vector<scene::Node*>& groups ){
 	if ( groups.empty() ) {
 		return;
 	}
@@ -627,7 +723,7 @@ void LinkedGroups_BeginTransform( const std::vector<scene::Node*>& groups ){
 	}
 }
 
-void LinkedGroups_EndTransform(){
+static void LinkedGroups_EndTransform_impl(){
 	if ( g_transformDepth == 0 ) {
 		return;
 	}
@@ -673,7 +769,7 @@ void LinkedGroups_EndTransform(){
 	g_transformStart.clear();
 }
 
-void LinkedGroups_CreateLinkedDuplicate(){
+static void LinkedGroups_CreateLinkedDuplicate_impl(){
 	if ( GlobalSelectionSystem().Mode() != SelectionSystem::ePrimitive ) {
 		globalErrorStream() << "Create linked duplicate: select a group in primitive mode\n";
 		return;
@@ -726,7 +822,7 @@ void LinkedGroups_CreateLinkedDuplicate(){
 	select_node_instances( clone.get(), true );
 }
 
-void LinkedGroups_SelectLinkedGroups(){
+static void LinkedGroups_SelectLinkedGroups_impl(){
 	if ( GlobalSelectionSystem().Mode() != SelectionSystem::ePrimitive ) {
 		globalErrorStream() << "Select linked groups: selection must be groups\n";
 		return;
@@ -771,7 +867,7 @@ void LinkedGroups_SelectLinkedGroups(){
 	}
 }
 
-void LinkedGroups_SeparateSelectedLinkedGroups(){
+static void LinkedGroups_SeparateSelectedLinkedGroups_impl(){
 	if ( GlobalSelectionSystem().Mode() != SelectionSystem::ePrimitive ) {
 		globalErrorStream() << "Separate linked groups: selection must be groups\n";
 		return;
@@ -855,3 +951,54 @@ void LinkedGroups_SeparateSelectedLinkedGroups(){
 		}
 	}
 }
+
+#include "modulesystem/singletonmodule.h"
+#include "modulesystem/moduleregistry.h"
+
+class LinkedGroupsSystemImpl final : public LinkedGroupsSystem
+{
+public:
+	void onCommandStart() override {
+		LinkedGroups_OnCommandStart_impl();
+	}
+	void onCommandFinish() override {
+		LinkedGroups_OnCommandFinish_impl();
+	}
+	void markNodeChanged( scene::Node& node ) override {
+		LinkedGroups_MarkNodeChanged_impl( node );
+	}
+	void markGroupChanged( scene::Node& node ) override {
+		LinkedGroups_MarkGroupChanged_impl( node );
+	}
+	void beginTransform( const std::vector<scene::Node*>& groups ) override {
+		LinkedGroups_BeginTransform_impl( groups );
+	}
+	void endTransform() override {
+		LinkedGroups_EndTransform_impl();
+	}
+	void createLinkedDuplicate() override {
+		LinkedGroups_CreateLinkedDuplicate_impl();
+	}
+	void selectLinkedGroups() override {
+		LinkedGroups_SelectLinkedGroups_impl();
+	}
+	void separateSelectedLinkedGroups() override {
+		LinkedGroups_SeparateSelectedLinkedGroups_impl();
+	}
+};
+
+class LinkedGroupsAPI
+{
+	LinkedGroupsSystemImpl m_system;
+public:
+	typedef LinkedGroupsSystem Type;
+	STRING_CONSTANT( Name, "*" );
+
+	LinkedGroupsSystem* getTable(){
+		return &m_system;
+	}
+};
+
+typedef SingletonModule<LinkedGroupsAPI> LinkedGroupsModule;
+typedef Static<LinkedGroupsModule> StaticLinkedGroupsModule;
+StaticRegisterModule staticRegisterLinkedGroups( StaticLinkedGroupsModule::instance() );

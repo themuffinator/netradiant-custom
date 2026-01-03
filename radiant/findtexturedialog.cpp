@@ -673,7 +673,7 @@ bool FindTextureDialog::isTextureTabActive() const {
 }
 
 void FindTextureDialog::updateTextures( const char* name ){
-	if ( isOpen() && isTextureTabActive() ) {
+	if ( isOpen() && g_FindTextureDialog.isTextureTabActive() ) {
 		const char* prefix = GlobalTexturePrefix_get();
 		const char* trimmed = name;
 		if ( shader_equal_prefix( name, prefix ) ) {

@@ -808,6 +808,7 @@ void Scene_BrushSplitByPlane( scene::Graph& graph, const ClipperPoints& points, 
 class BrushInstanceSetClipPlane : public scene::Graph::Walker
 {
 	const Plane3 m_plane;
+	PlanePoints m_points;
 public:
 	BrushInstanceSetClipPlane( const ClipperPoints& points, bool flip )
 		: m_plane( points._count < 2
@@ -815,6 +816,15 @@ public:
 		           : flip
 		             ? plane3_for_points( points[0], points[2], points[1] )
 		             : plane3_for_points( points[0], points[1], points[2] ) ){
+		if ( points._count < 2 ) {
+			m_points = PlanePoints{ DoubleVector3( 0, 0, 0 ), DoubleVector3( 0, 0, 0 ), DoubleVector3( 0, 0, 0 ) };
+		}
+		else if ( flip ) {
+			m_points = PlanePoints{ points[0], points[2], points[1] };
+		}
+		else{
+			m_points = PlanePoints{ points[0], points[1], points[2] };
+		}
 	}
 	bool pre( const scene::Path& path, scene::Instance& instance ) const override {
 		BrushInstance* brush = Instance_getBrush( instance );
@@ -822,7 +832,7 @@ public:
 		     && path.top().get().visible()
 		     && brush->isSelected() ) {
 			BrushInstance& brushInstance = *brush;
-			brushInstance.setClipPlane( m_plane );
+			brushInstance.setClipPlane( m_plane, m_points );
 		}
 		return true;
 	}

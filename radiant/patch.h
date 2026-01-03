@@ -60,6 +60,7 @@
 #include "signal/signalfwd.h"
 #include "xml/ixml.h"
 #include "dragplanes.h"
+#include "linkedgroups.h"
 
 #include "brush_primit.h"
 
@@ -67,7 +68,6 @@ namespace scene
 {
 class Node;
 }
-void LinkedGroups_MarkNodeChanged( scene::Node& node );
 
 enum EPatchType
 {

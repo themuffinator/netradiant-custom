@@ -41,9 +41,14 @@ bool g_clipper_resetFlip = true;
 bool g_clipper_resetPoints = true;
 bool g_clipper_2pointsIn2d = true;
 int g_clipper_doubleclicked_split = 1;
+int g_clipper_volume_visual = eClipperVolumeVisualNrc;
 
 bool Clipper_get2pointsIn2d(){
 	return g_clipper_2pointsIn2d;
+}
+
+int Clipper_getVolumeVisual(){
+	return g_clipper_volume_visual;
 }
 
 void ClipperModeQuick(){
@@ -181,6 +186,15 @@ void Clipper_constructPreferences( PreferencesPage& page ){
 		    IntExportCaller( g_clipper_doubleclicked_split )
 		);
 	}
+	{
+		const char* visual_styles[] = { "GTK", "NRC", "VIBE" };
+		page.appendCombo(
+		    "Clip Volume Visual",
+		    StringArrayRange( visual_styles ),
+		    IntImportCaller( g_clipper_volume_visual ),
+		    IntExportCaller( g_clipper_volume_visual )
+		);
+	}
 }
 void Clipper_constructPage( PreferenceGroup& group ){
 	PreferencesPage page( group.createPage( "Clipper", "Clipper Tool Settings" ) );
@@ -205,6 +219,7 @@ void Clipper_Construct(){
 	GlobalPreferenceSystem().registerPreference( "ClipperResetPoints", BoolImportStringCaller( g_clipper_resetPoints ), BoolExportStringCaller( g_clipper_resetPoints ) );
 	GlobalPreferenceSystem().registerPreference( "Clipper2PointsIn2D", BoolImportStringCaller( g_clipper_2pointsIn2d ), BoolExportStringCaller( g_clipper_2pointsIn2d ) );
 	GlobalPreferenceSystem().registerPreference( "ClipperDoubleclickedSplit", IntImportStringCaller( g_clipper_doubleclicked_split ), IntExportStringCaller( g_clipper_doubleclicked_split ) );
+	GlobalPreferenceSystem().registerPreference( "ClipperVolumeVisual", IntImportStringCaller( g_clipper_volume_visual ), IntExportStringCaller( g_clipper_volume_visual ) );
 	Clipper_registerPreferencesPage();
 
 	typedef FreeCaller<void(const Selectable&), Clipper_SelectionChanged> ClipperSelectionChangedCaller;

@@ -410,7 +410,9 @@ void Undo_registerPreferencesPage( RadiantUndoSystem& undo ){
 	PreferencesDialog_addSettingsPage( ReferenceCaller<RadiantUndoSystem, void(PreferenceGroup&), Undo_constructPage>( undo ) );
 }
 
-class UndoSystemDependencies : public GlobalPreferenceSystemModuleRef
+class UndoSystemDependencies :
+	public GlobalPreferenceSystemModuleRef,
+	public GlobalLinkedGroupsModuleRef
 {
 };
 

@@ -52,13 +52,19 @@
 #include "mainframe.h"
 #include "preferences.h"
 #include "commands.h"
+#include "assetdrop.h"
 #include "xywindow.h"
 #include "windowobservers.h"
 #include "renderstate.h"
+#include "previewlighting.h"
 
 #include "timer.h"
 
 #include <QOpenGLWidget>
+#include <QDragEnterEvent>
+#include <QDragMoveEvent>
+#include <QDropEvent>
+#include <QMimeData>
 
 #include <QApplication>
 
@@ -1579,10 +1585,11 @@ class CamGLWidget : public QOpenGLWidget
 {
 	CamWnd& m_camwnd;
 	FBO *m_fbo{};
-	qreal m_scale;
+	qreal m_scale{ 1.0 };
 public:
 	CamGLWidget( CamWnd& camwnd ) : QOpenGLWidget(), m_camwnd( camwnd ) {
 		setMouseTracking( true );
+		setAcceptDrops( true );
 	}
 
 	~CamGLWidget() override {
@@ -1664,12 +1671,72 @@ protected:
 		}
 		wheelmove_scroll( scaledEvent( event ), m_camwnd );
 	}
+	void dragEnterEvent( QDragEnterEvent *event ) override {
+		if ( canAcceptDrop( event->mimeData() ) ) {
+			event->acceptProposedAction();
+		}
+	}
+	void dragMoveEvent( QDragMoveEvent *event ) override {
+		if ( canAcceptDrop( event->mimeData() ) ) {
+			event->acceptProposedAction();
+		}
+	}
+	void dropEvent( QDropEvent *event ) override {
+#if QT_VERSION >= QT_VERSION_CHECK( 6, 0, 0 )
+		const QPointF pos = event->position();
+#else
+		const QPointF pos = event->pos();
+#endif
+		if ( handleDrop( pos, event->mimeData() ) ) {
+			event->acceptProposedAction();
+		}
+	}
 private:
 	QMouseEvent scaledEvent( const QMouseEvent *event ) const {
 		return QMouseEvent( event->type(), event->localPos() * m_scale, event->windowPos() * m_scale, event->screenPos() * m_scale, event->button(), event->buttons(), event->modifiers() );
 	}
 	QWheelEvent scaledEvent( const QWheelEvent *event ) const {
 		return QWheelEvent( event->position() * m_scale, event->globalPosition() * m_scale, event->pixelDelta(), event->angleDelta(), event->buttons(), event->modifiers(), event->phase(), false );
+	}
+	bool canAcceptDrop( const QMimeData* mimeData ) const {
+		if ( mimeData == nullptr ) {
+			return false;
+		}
+		return mimeData->hasFormat( kEntityBrowserMimeType ) || mimeData->hasFormat( kSoundBrowserMimeType );
+	}
+	bool handleDrop( const QPointF& position, const QMimeData* mimeData ) const {
+		if ( !canAcceptDrop( mimeData ) ) {
+			return false;
+		}
+
+		camera_t& cam = m_camwnd.getCamera();
+		if ( cam.width <= 0 || cam.height <= 0 ) {
+			return false;
+		}
+
+		const QPointF scaled = position * m_scale;
+		Vector2 device;
+		device.x() = ( 2.0f * float( scaled.x() ) ) / cam.width - 1.0f;
+		device.y() = ( 2.0f * ( cam.height - 1.0f - float( scaled.y() ) ) ) / cam.height - 1.0f;
+
+		const Vector2 epsilon( 12.0f / cam.width, 12.0f / cam.height );
+		Vector3 intersection( g_vector3_identity );
+		Scene_Intersect( *cam.m_view, device, epsilon, intersection );
+
+		if ( mimeData->hasFormat( kEntityBrowserMimeType ) ) {
+			const QByteArray payload = mimeData->data( kEntityBrowserMimeType );
+			if ( !payload.isEmpty() ) {
+				return AssetDrop_handleEntityClass( payload.constData(), intersection );
+			}
+		}
+		if ( mimeData->hasFormat( kSoundBrowserMimeType ) ) {
+			const QByteArray payload = mimeData->data( kSoundBrowserMimeType );
+			if ( !payload.isEmpty() ) {
+				return AssetDrop_handleSoundPath( payload.constData(), intersection );
+			}
+		}
+
+		return false;
 	}
 };
 
@@ -1956,6 +2023,10 @@ void CamWnd::Cam_Draw(){
 	Renderer_ResetStats();
 	extern void Cull_ResetStats();
 	Cull_ResetStats();
+
+	if ( m_Camera.draw_mode == cd_lighting ) {
+		PreviewLighting_UpdateIfNeeded();
+	}
 
 	gl().glMatrixMode( GL_PROJECTION );
 	gl().glLoadMatrixf( reinterpret_cast<const float*>( &m_Camera.projection ) );
@@ -2266,10 +2337,7 @@ void CamWnd_constructToolbar( QToolBar* toolbar ){
 }
 
 void CamWnd_registerShortcuts(){
-	if ( g_pGameDescription->mGameType == "doom3" ) {
-		command_connect_accelerator( "TogglePreview" );
-	}
-
+	command_connect_accelerator( "TogglePreview" );
 	command_connect_accelerator( "CameraModeNext" );
 	command_connect_accelerator( "CameraModePrev" );
 
@@ -2296,17 +2364,13 @@ void CamWnd_SetMode( camera_draw_mode mode ){
 	camera_t::draw_mode = ( g_camwnd == 0 && mode == cd_lighting )? cd_texture : mode;
 
 	ShaderCache_setBumpEnabled( camera_t::draw_mode == cd_lighting );
+	PreviewLighting_Enable( camera_t::draw_mode == cd_lighting );
 	if ( g_camwnd != 0 ) {
 		CamWnd_Update( *g_camwnd );
 	}
 }
 
 void CamWnd_TogglePreview(){
-	// gametype must be doom3 for this function to work
-	// if the gametype is not doom3 something is wrong with the
-	// global command list or somebody else calls this function.
-	ASSERT_MESSAGE( g_pGameDescription->mGameType == "doom3", "CamWnd_TogglePreview called although mGameType is not doom3 compatible" );
-
 	// switch between textured and lighting mode
 	CamWnd_SetMode( ( CamWnd_GetMode() == cd_lighting ) ? cd_texture : cd_lighting );
 }
@@ -2365,12 +2429,10 @@ void RenderModeExport( const IntImportCallback& importer ){
 typedef FreeCaller<void(const IntImportCallback&), RenderModeExport> RenderModeExportCaller;
 
 void CameraModeNext(){
-	const int count = camera_draw_mode_count - ( g_pGameDescription->mGameType == "doom3"? 0 : 1 );
-	CamWnd_SetMode( static_cast<camera_draw_mode>( ( CamWnd_GetMode() + 1 ) % count ) );
+	CamWnd_SetMode( static_cast<camera_draw_mode>( ( CamWnd_GetMode() + 1 ) % camera_draw_mode_count ) );
 }
 void CameraModePrev(){
-	const int count = camera_draw_mode_count - ( g_pGameDescription->mGameType == "doom3"? 0 : 1 );
-	CamWnd_SetMode( static_cast<camera_draw_mode>( ( CamWnd_GetMode() + count - 1 ) % count ) );
+	CamWnd_SetMode( static_cast<camera_draw_mode>( ( CamWnd_GetMode() + camera_draw_mode_count - 1 ) % camera_draw_mode_count ) );
 }
 
 void CamMSAAImport( int value ){
@@ -2437,7 +2499,7 @@ void Camera_constructPreferences( PreferencesPage& page ){
 	const char* render_modes[]{ "Wireframe", "Flatshade", "Textured", "Textured+Wire", "Lighting" };
 	page.appendCombo(
 	    "Render Mode",
-	    StringArrayRange( render_modes, std::size( render_modes ) - ( g_pGameDescription->mGameType == "doom3"? 0 : 1 ) ),
+	    StringArrayRange( render_modes ),
 	    IntImportCallback( RenderModeImportCaller() ),
 	    IntExportCallback( RenderModeExportCaller() )
 	);
@@ -2509,10 +2571,7 @@ void CamWnd_Construct(){
 //	GlobalCommands_insert( "LookThroughSelected", makeCallbackF( GlobalCamera_LookThroughSelected ) );
 //	GlobalCommands_insert( "LookThroughCamera", makeCallbackF( GlobalCamera_LookThroughCamera ) );
 
-	if ( g_pGameDescription->mGameType == "doom3" ) {
-		GlobalCommands_insert( "TogglePreview", makeCallbackF( CamWnd_TogglePreview ), QKeySequence( "F3" ) );
-	}
-
+	GlobalCommands_insert( "TogglePreview", makeCallbackF( CamWnd_TogglePreview ), QKeySequence( "F3" ) );
 	GlobalCommands_insert( "CameraModeNext", makeCallbackF( CameraModeNext ), QKeySequence( "Shift+]" ) );
 	GlobalCommands_insert( "CameraModePrev", makeCallbackF( CameraModePrev ), QKeySequence( "Shift+[" ) );
 

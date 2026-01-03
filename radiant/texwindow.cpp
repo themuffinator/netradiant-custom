@@ -54,6 +54,9 @@
 #include <QOpenGLWidget>
 #include <QTabWidget>
 #include <QClipboard>
+#include <QToolButton>
+#include <QActionGroup>
+#include <QMenu>
 
 #include "signal/signal.h"
 #include "math/vector.h"
@@ -150,6 +153,97 @@ enum StartupShaders
 	STARTUPSHADERS_COMMON,
 };
 
+namespace
+{
+typedef const char* FlagName;
+
+const FlagName surfaceflagNamesDefault[32] = {
+	"surf1",
+	"surf2",
+	"surf3",
+	"surf4",
+	"surf5",
+	"surf6",
+	"surf7",
+	"surf8",
+	"surf9",
+	"surf10",
+	"surf11",
+	"surf12",
+	"surf13",
+	"surf14",
+	"surf15",
+	"surf16",
+	"surf17",
+	"surf18",
+	"surf19",
+	"surf20",
+	"surf21",
+	"surf22",
+	"surf23",
+	"surf24",
+	"surf25",
+	"surf26",
+	"surf27",
+	"surf28",
+	"surf29",
+	"surf30",
+	"surf31",
+	"surf32"
+};
+
+const FlagName contentflagNamesDefault[32] = {
+	"cont1",
+	"cont2",
+	"cont3",
+	"cont4",
+	"cont5",
+	"cont6",
+	"cont7",
+	"cont8",
+	"cont9",
+	"cont10",
+	"cont11",
+	"cont12",
+	"cont13",
+	"cont14",
+	"cont15",
+	"cont16",
+	"cont17",
+	"cont18",
+	"cont19",
+	"cont20",
+	"cont21",
+	"cont22",
+	"cont23",
+	"cont24",
+	"cont25",
+	"cont26",
+	"cont27",
+	"cont28",
+	"cont29",
+	"cont30",
+	"cont31",
+	"cont32"
+};
+
+const char* TextureBrowser_getSurfaceFlagName( std::size_t bit ){
+	const char* value = g_pGameDescription->getKeyValue( surfaceflagNamesDefault[bit] );
+	if ( string_empty( value ) ) {
+		return surfaceflagNamesDefault[bit];
+	}
+	return value;
+}
+
+const char* TextureBrowser_getContentFlagName( std::size_t bit ){
+	const char* value = g_pGameDescription->getKeyValue( contentflagNamesDefault[bit] );
+	if ( string_empty( value ) ) {
+		return contentflagNamesDefault[bit];
+	}
+	return value;
+}
+}
+
 
 class TextureBrowser
 {
@@ -171,6 +265,14 @@ public:
 	QLineEdit* m_filter_entry;
 	QAction* m_filter_action;
 	CopiedString m_filter_string;
+	QToolButton* m_surfaceFilterButton;
+	QToolButton* m_contentFilterButton;
+	QMenu* m_surfaceFilterMenu;
+	QMenu* m_contentFilterMenu;
+	unsigned int m_surfaceFlagsMask;
+	unsigned int m_contentFlagsMask;
+	bool m_surfaceFlagsMatchAll;
+	bool m_contentFlagsMatchAll;
 
 	std::vector<CopiedString> m_recent_folders;
 
@@ -229,6 +331,14 @@ public:
 		m_enablealpha_item( BoolExportCaller( g_TextureBrowser_enableAlpha ) ),
 		m_tags_item( BoolExportCaller( m_tags ) ),
 		m_filter_searchFromStart_item( BoolExportCaller( g_TextureBrowser_filter_searchFromStart ) ),
+		m_surfaceFilterButton( nullptr ),
+		m_contentFilterButton( nullptr ),
+		m_surfaceFilterMenu( nullptr ),
+		m_contentFilterMenu( nullptr ),
+		m_surfaceFlagsMask( 0 ),
+		m_contentFlagsMask( 0 ),
+		m_surfaceFlagsMatchAll( false ),
+		m_contentFlagsMatchAll( false ),
 		m_heightChanged( true ),
 		m_originInvalid( true ),
 		m_scrollAdjustment( [this]( int value ){
@@ -441,8 +551,9 @@ bool Texture_filtered( const char* name, const TextureBrowser& textureBrowser ){
 	if( string_empty( filter ) ){
 		return false;
 	}
+	const char* leaf = path_get_filename_start( name );
 	if( g_TextureBrowser_filter_searchFromStart ){
-		if( string_equal_prefix_nocase( name, filter ) ){
+		if( string_equal_prefix_nocase( name, filter ) || string_equal_prefix_nocase( leaf, filter ) ){
 			return false;
 		}
 	}
@@ -451,6 +562,34 @@ bool Texture_filtered( const char* name, const TextureBrowser& textureBrowser ){
 			return false;
 		}
 	}
+	return true;
+}
+
+bool Texture_flagsMatch( const qtexture_t* texture, const TextureBrowser& textureBrowser ){
+	if ( textureBrowser.m_surfaceFlagsMask != 0 ) {
+		const unsigned int flags = static_cast<unsigned int>( texture->surfaceFlags );
+		if ( textureBrowser.m_surfaceFlagsMatchAll ) {
+			if ( ( flags & textureBrowser.m_surfaceFlagsMask ) != textureBrowser.m_surfaceFlagsMask ) {
+				return false;
+			}
+		}
+		else if ( ( flags & textureBrowser.m_surfaceFlagsMask ) == 0 ) {
+			return false;
+		}
+	}
+
+	if ( textureBrowser.m_contentFlagsMask != 0 ) {
+		const unsigned int flags = static_cast<unsigned int>( texture->contentFlags );
+		if ( textureBrowser.m_contentFlagsMatchAll ) {
+			if ( ( flags & textureBrowser.m_contentFlagsMask ) != textureBrowser.m_contentFlagsMask ) {
+				return false;
+			}
+		}
+		else if ( ( flags & textureBrowser.m_contentFlagsMask ) == 0 ) {
+			return false;
+		}
+	}
+
 	return true;
 }
 
@@ -463,8 +602,9 @@ bool show_shaders, bool show_textures, bool hideUnused, bool hideNonShadersInCom
 textureBrowser.m_showShaders, textureBrowser.m_showTextures, textureBrowser.m_hideUnused, textureBrowser.m_hideNonShadersInCommon
 */
 bool Texture_IsShown( IShader* shader, const TextureBrowser& textureBrowser ){
+	qtexture_t* texture = shader->getTexture();
 	// filter notex / shadernotex images
-	if ( g_TextureBrowser_filterNotex && ( string_equal( g_notex.c_str(), shader->getTexture()->name ) || string_equal( g_shadernotex.c_str(), shader->getTexture()->name ) ) ) {
+	if ( g_TextureBrowser_filterNotex && ( string_equal( g_notex.c_str(), texture->name ) || string_equal( g_shadernotex.c_str(), texture->name ) ) ) {
 		return false;
 	}
 
@@ -498,7 +638,11 @@ bool Texture_IsShown( IShader* shader, const TextureBrowser& textureBrowser ){
 		}
 	}
 
-	if( Texture_filtered( path_get_filename_start( shader->getName() ), textureBrowser ) ){
+	if( Texture_filtered( shader_get_textureName( shader->getName() ), textureBrowser ) ){
+		return false;
+	}
+
+	if ( !Texture_flagsMatch( texture, textureBrowser ) ) {
 		return false;
 	}
 
@@ -1690,6 +1834,141 @@ void TextureBrowser_filterSetModeIcon( QAction *action ){
 		: "search.png" ) );
 }
 
+static void TextureBrowser_filterChanged( TextureBrowser& textureBrowser ){
+	textureBrowser.heightChanged();
+	textureBrowser.m_originInvalid = true;
+}
+
+static int TextureBrowser_countFlags( unsigned int mask ){
+	int count = 0;
+	while ( mask != 0 ) {
+		count += static_cast<int>( mask & 1u );
+		mask >>= 1u;
+	}
+	return count;
+}
+
+static QString TextureBrowser_flagFilterTooltip( const char* label, unsigned int mask, bool matchAll, const char* ( *nameFunc )( std::size_t ) ){
+	const QString labelText = QString::fromLatin1( label );
+	if ( mask == 0 ) {
+		return QString::fromLatin1( "%1 filter: Any" ).arg( labelText );
+	}
+	const char* mode = matchAll ? "Match all" : "Match any";
+	QString tooltip = QString::fromLatin1( "%1 filter (%2): " ).arg( labelText, QString::fromLatin1( mode ) );
+	bool first = true;
+	for ( std::size_t bit = 0; bit < 32; ++bit ) {
+		if ( ( mask & ( 1u << bit ) ) != 0 ) {
+			if ( !first ) {
+				tooltip += ", ";
+			}
+			tooltip += QString::fromLatin1( nameFunc( bit ) );
+			first = false;
+		}
+	}
+	return tooltip;
+}
+
+static void TextureBrowser_updateFlagFilterButton( TextureBrowser& textureBrowser, bool surface ){
+	QToolButton* button = surface ? textureBrowser.m_surfaceFilterButton : textureBrowser.m_contentFilterButton;
+	if ( button == nullptr ) {
+		return;
+	}
+	const unsigned int mask = surface ? textureBrowser.m_surfaceFlagsMask : textureBrowser.m_contentFlagsMask;
+	const bool matchAll = surface ? textureBrowser.m_surfaceFlagsMatchAll : textureBrowser.m_contentFlagsMatchAll;
+	const char* label = surface ? "Surface" : "Content";
+	const int count = TextureBrowser_countFlags( mask );
+	const char* mode = matchAll ? "All" : "Any";
+
+	if ( count == 0 ) {
+		button->setText( QString::fromLatin1( label ) );
+	}
+	else {
+		button->setText( QString::fromLatin1( "%1: %2 (%3)" )
+		                     .arg( QString::fromLatin1( label ) )
+		                     .arg( count )
+		                     .arg( QString::fromLatin1( mode ) ) );
+	}
+
+	const auto nameFunc = surface ? TextureBrowser_getSurfaceFlagName : TextureBrowser_getContentFlagName;
+	button->setToolTip( TextureBrowser_flagFilterTooltip( label, mask, matchAll, nameFunc ) );
+}
+
+static void TextureBrowser_setFlagMatchMode( TextureBrowser& textureBrowser, bool surface, bool matchAll ){
+	if ( surface ) {
+		textureBrowser.m_surfaceFlagsMatchAll = matchAll;
+	}
+	else {
+		textureBrowser.m_contentFlagsMatchAll = matchAll;
+	}
+	TextureBrowser_updateFlagFilterButton( textureBrowser, surface );
+	TextureBrowser_filterChanged( textureBrowser );
+}
+
+static void TextureBrowser_clearFlagMenu( QMenu* menu ){
+	if ( menu == nullptr ) {
+		return;
+	}
+	for ( QAction* action : menu->actions() )
+	{
+		if ( action->isCheckable() && action->data().isValid() ) {
+			action->setChecked( false );
+		}
+	}
+}
+
+static QMenu* TextureBrowser_buildFlagMenu( TextureBrowser& textureBrowser, bool surface ){
+	auto *menu = new QMenu;
+	menu->setTearOffEnabled( g_Layout_enableDetachableMenus.m_value );
+
+	auto *modeGroup = new QActionGroup( menu );
+	modeGroup->setExclusive( true );
+	auto *matchAny = menu->addAction( "Match any" );
+	auto *matchAll = menu->addAction( "Match all" );
+	matchAny->setCheckable( true );
+	matchAll->setCheckable( true );
+	modeGroup->addAction( matchAny );
+	modeGroup->addAction( matchAll );
+	matchAny->setChecked( !( surface ? textureBrowser.m_surfaceFlagsMatchAll : textureBrowser.m_contentFlagsMatchAll ) );
+	matchAll->setChecked( surface ? textureBrowser.m_surfaceFlagsMatchAll : textureBrowser.m_contentFlagsMatchAll );
+	QObject::connect( matchAny, &QAction::triggered, [surface](){
+		TextureBrowser_setFlagMatchMode( g_TexBro, surface, false );
+	} );
+	QObject::connect( matchAll, &QAction::triggered, [surface](){
+		TextureBrowser_setFlagMatchMode( g_TexBro, surface, true );
+	} );
+
+	menu->addSeparator();
+	auto *clearAction = menu->addAction( "Clear filter" );
+	QObject::connect( clearAction, &QAction::triggered, [surface](){
+		TextureBrowser_clearFlagMenu( surface ? g_TexBro.m_surfaceFilterMenu : g_TexBro.m_contentFilterMenu );
+		TextureBrowser_filterChanged( g_TexBro );
+	} );
+
+	menu->addSeparator();
+	const auto nameFunc = surface ? TextureBrowser_getSurfaceFlagName : TextureBrowser_getContentFlagName;
+	for ( std::size_t bit = 0; bit < 32; ++bit )
+	{
+		QAction* action = menu->addAction( nameFunc( bit ) );
+		action->setCheckable( true );
+		action->setData( static_cast<int>( bit ) );
+		const unsigned int mask = surface ? textureBrowser.m_surfaceFlagsMask : textureBrowser.m_contentFlagsMask;
+		action->setChecked( ( mask & ( 1u << bit ) ) != 0 );
+		QObject::connect( action, &QAction::toggled, [surface, bit]( bool checked ){
+			unsigned int& maskRef = surface ? g_TexBro.m_surfaceFlagsMask : g_TexBro.m_contentFlagsMask;
+			if ( checked ) {
+				maskRef |= ( 1u << bit );
+			}
+			else {
+				maskRef &= ~( 1u << bit );
+			}
+			TextureBrowser_updateFlagFilterButton( g_TexBro, surface );
+			TextureBrowser_filterChanged( g_TexBro );
+		} );
+	}
+
+	return menu;
+}
+
 
 class TexWndGLWidget : public QOpenGLWidget
 {
@@ -1813,22 +2092,67 @@ QWidget* TextureBrowser_constructWindow( QWidget* toplevel ){
 
 		toolbar_append_button( toolbar, "Flush & Reload Shaders", "texbro_refresh.png", "RefreshShaders" );
 	}
-	{	// filter entry
+	{	// filter bar
+		auto *filterBar = new QWidget;
+		auto *filterLayout = new QHBoxLayout( filterBar );
+		filterLayout->setContentsMargins( 4, 4, 4, 4 );
+		filterLayout->setSpacing( 6 );
+
 		QLineEdit *entry = g_TexBro.m_filter_entry = new Filter_QLineEdit;
-		vbox->addWidget( entry );
+		filterLayout->addWidget( entry, 1 );
 		entry->setClearButtonEnabled( true );
 		entry->setFocusPolicy( Qt::FocusPolicy::ClickFocus );
+		entry->setPlaceholderText( "Filter textures" );
 
 		QAction *action = g_TexBro.m_filter_action = entry->addAction( QIcon(), QLineEdit::LeadingPosition );
 		TextureBrowser_filterSetModeIcon( action );
-		action->setToolTip( "toggle match mode ( start / any position )" );
+		action->setToolTip( "Toggle match mode (start / any position)" );
 
 		QObject::connect( entry, &QLineEdit::textChanged, []( const QString& text ){
 			g_TexBro.m_filter_string = text.toLatin1().constData();
-			g_TexBro.heightChanged();
-			g_TexBro.m_originInvalid = true;
+			TextureBrowser_filterChanged( g_TexBro );
 		} );
 		QObject::connect( action, &QAction::triggered, GlobalToggles_find( "SearchFromStart" ).m_command.m_callback );
+
+		g_TexBro.m_surfaceFilterButton = new QToolButton;
+		g_TexBro.m_surfaceFilterButton->setPopupMode( QToolButton::InstantPopup );
+		g_TexBro.m_surfaceFilterButton->setToolButtonStyle( Qt::ToolButtonTextOnly );
+		g_TexBro.m_surfaceFilterButton->setAutoRaise( true );
+		g_TexBro.m_surfaceFilterButton->setFocusPolicy( Qt::NoFocus );
+		g_TexBro.m_surfaceFilterMenu = TextureBrowser_buildFlagMenu( g_TexBro, true );
+		g_TexBro.m_surfaceFilterMenu->setParent( g_TexBro.m_surfaceFilterButton, g_TexBro.m_surfaceFilterMenu->windowFlags() );
+		g_TexBro.m_surfaceFilterButton->setMenu( g_TexBro.m_surfaceFilterMenu );
+		filterLayout->addWidget( g_TexBro.m_surfaceFilterButton );
+
+		g_TexBro.m_contentFilterButton = new QToolButton;
+		g_TexBro.m_contentFilterButton->setPopupMode( QToolButton::InstantPopup );
+		g_TexBro.m_contentFilterButton->setToolButtonStyle( Qt::ToolButtonTextOnly );
+		g_TexBro.m_contentFilterButton->setAutoRaise( true );
+		g_TexBro.m_contentFilterButton->setFocusPolicy( Qt::NoFocus );
+		g_TexBro.m_contentFilterMenu = TextureBrowser_buildFlagMenu( g_TexBro, false );
+		g_TexBro.m_contentFilterMenu->setParent( g_TexBro.m_contentFilterButton, g_TexBro.m_contentFilterMenu->windowFlags() );
+		g_TexBro.m_contentFilterButton->setMenu( g_TexBro.m_contentFilterMenu );
+		filterLayout->addWidget( g_TexBro.m_contentFilterButton );
+
+		auto *clearButton = new QToolButton;
+		clearButton->setAutoRaise( true );
+		clearButton->setFocusPolicy( Qt::NoFocus );
+		clearButton->setIcon( new_local_icon( "f-reset.png" ) );
+		clearButton->setToolTip( "Clear filters" );
+		filterLayout->addWidget( clearButton );
+		QObject::connect( clearButton, &QToolButton::clicked, [](){
+			if ( g_TexBro.m_filter_entry != nullptr ) {
+				g_TexBro.m_filter_entry->clear();
+			}
+			TextureBrowser_clearFlagMenu( g_TexBro.m_surfaceFilterMenu );
+			TextureBrowser_clearFlagMenu( g_TexBro.m_contentFilterMenu );
+			TextureBrowser_filterChanged( g_TexBro );
+		} );
+
+		TextureBrowser_updateFlagFilterButton( g_TexBro, true );
+		TextureBrowser_updateFlagFilterButton( g_TexBro, false );
+
+		vbox->addWidget( filterBar );
 	}
 	{	// Texture TreeView
 		TextureBrowser_createTreeViewTree();
